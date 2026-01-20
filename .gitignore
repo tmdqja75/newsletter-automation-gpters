@@ -52,3 +52,17 @@ Thumbs.db
 # Project specific
 articles/**/draft_*
 .claude/
+
+# Next.js
+web/.next/
+web/out/
+web/.env*.local
+web/.env.local
+web/.vercel
+
+# Node.js
+web/node_modules/
+node_modules/
+
+# Vercel
+.vercel
