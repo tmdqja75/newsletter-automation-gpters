@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI-powered newsletter automation system for "Automata" (오토마타) newsletter using LangGraph deepagents. Generates weekly AI/LLM news articles in Korean, published every Wednesday.
+AI-powered newsletter automation system for "Automata" (오토마타) newsletter using LangGraph deepagents. This project consists of three main components:
+
+1. **CLI Newsletter Generator** (`src/`) - Automated AI/LLM news article generation in Korean, published every Wednesday
+2. **Web Application** (`web/`) - Next.js 16 frontend for personalized research newsletter service (in development)
+3. **API Backend** (`api/`) - FastAPI backend for web service integration (placeholder)
 
 ## Commands
 
@@ -40,7 +44,51 @@ uv run python run.py --quick
 uv run python run.py --hitl
 ```
 
+### Web Application (Next.js)
+
+```bash
+# Navigate to web directory
+cd web
+
+# Install dependencies
+npm install
+
+# Run development server (http://localhost:3000)
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+
+# Lint code
+npm run lint
+
+# Format code with Prettier
+npm run format
+
+# Check formatting
+npm run format:check
+```
+
+### API Backend (FastAPI)
+
+```bash
+# Install FastAPI dependencies
+uv pip install -r api/requirements.txt
+
+# Run development server (http://localhost:8000)
+cd api
+uv run uvicorn main:app --reload --port 8000
+
+# Test health endpoint
+curl http://localhost:8000/api/health
+```
+
 ### Environment Setup
+
+#### CLI Newsletter Generator
 
 Required API keys in `.env`:
 - `ANTHROPIC_API_KEY` - For Claude LLM via deepagents
@@ -51,7 +99,39 @@ Optional LangSmith tracing:
 - `LANGCHAIN_API_KEY`
 - `LANGSMITH_PROJECT="newsletter-automation"`
 
+#### Web Application
+
+Required environment variables in `web/.env.local`:
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL (client-side)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key (client-side)
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side)
+- `RESEND_API_KEY` - Resend email service API key
+- `API_SECRET_KEY` - Internal API authentication secret
+
+Create from template:
+```bash
+cp web/.env.example web/.env.local
+# Edit web/.env.local with actual API keys
+```
+
+Environment variables are validated at runtime using Zod schema in `web/lib/env.ts`.
+
 ## Architecture
+
+### Monorepo Structure
+
+The project uses a monorepo structure with three independent components:
+
+```
+newsletter-automation-gpters/
+├── src/              # Python CLI newsletter generator (existing)
+├── web/              # Next.js frontend (new)
+├── api/              # FastAPI backend (placeholder)
+├── .github/workflows/  # CI/CD pipelines
+│   ├── ci-web.yml      # Next.js CI (lint, type-check, build)
+│   └── ci-python.yml   # Python CI (uv, pytest)
+└── vercel.json       # Vercel deployment config
+```
 
 ### Multi-Agent System
 
@@ -93,6 +173,7 @@ The standard newsletter generation follows this sequence:
 ### Directory Structure
 
 ```
+# CLI Newsletter Generator
 src/
 ├── config.py              # System prompts, API keys, templates
 ├── main.py                # Orchestrator agent and workflow
@@ -112,6 +193,26 @@ articles/{YYYY-MM-DD}/     # Generated articles by date
 ├── 03_topic3.md
 ├── 04_study_cafe.md
 └── newsletter.md          # Final merged newsletter
+
+# Web Application (Next.js)
+web/
+├── app/                   # Next.js App Router
+│   ├── layout.tsx         # Root layout
+│   ├── page.tsx           # Home page
+│   └── globals.css        # Global styles
+├── lib/                   # Utilities
+│   └── env.ts             # Environment validation
+├── .prettierrc            # Prettier config
+├── eslint.config.mjs      # ESLint config
+├── env.d.ts               # TypeScript env types
+├── next.config.ts         # Next.js config
+├── tailwind.config.ts     # Tailwind config
+└── tsconfig.json          # TypeScript config
+
+# API Backend (FastAPI)
+api/
+├── main.py                # FastAPI application
+└── requirements.txt       # Python dependencies
 ```
 
 ## Important Implementation Details
@@ -194,12 +295,96 @@ Uses `search_depth="advanced"` for comprehensive results.
 Uses Algolia HN API with `tags=story` filter.
 Returns: title, URL, HN discussion URL, points, comment count, author, timestamp.
 
-## Package Manager: uv
+## Web Application Details
+
+### Technology Stack
+
+- **Framework**: Next.js 16 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Linting**: ESLint with Next.js and TypeScript rules
+- **Formatting**: Prettier with Tailwind CSS plugin
+- **Database**: Supabase (PostgreSQL)
+- **Email**: Resend
+- **State Management**: React hooks (no external state library yet)
+- **Validation**: Zod
+
+### Code Style
+
+The web application follows these conventions:
+
+1. **TypeScript**: Strict mode enabled
+   - All environment variables must be typed in `env.d.ts`
+   - Runtime validation via Zod in `lib/env.ts`
+
+2. **Formatting**: Prettier with single quotes
+   - Automatically sorts Tailwind classes
+   - 2-space indentation
+   - Semicolons required
+
+3. **ESLint Rules**:
+   - `@typescript-eslint/no-unused-vars`: error
+   - `@typescript-eslint/no-explicit-any`: warn
+
+4. **Component Structure**:
+   - Use Server Components by default
+   - Add `'use client'` only when needed (hooks, event handlers)
+   - Prefer composition over prop drilling
+
+### API Routes
+
+Next.js API routes follow this pattern:
+```typescript
+// app/api/[endpoint]/route.ts
+export async function GET(request: Request) {
+  // Handler logic
+}
+```
+
+## CI/CD
+
+### GitHub Actions Workflows
+
+Two independent CI pipelines run on push/PR to main and dev branches:
+
+#### Web CI (`.github/workflows/ci-web.yml`)
+Triggers on changes to `web/**`:
+1. Install Node.js 20 and dependencies
+2. Run ESLint
+3. Run Prettier check
+4. TypeScript type checking (`tsc --noEmit`)
+5. Build Next.js application
+
+#### Python CI (`.github/workflows/ci-python.yml`)
+Triggers on changes to `api/**`, `src/**`, or Python config files:
+1. Install uv package manager
+2. Set up Python 3.11
+3. Install dependencies with `uv sync`
+4. Run pytest (continues on error)
+
+### Deployment
+
+The application is configured for Vercel deployment:
+- `vercel.json` defines build and routing configuration
+- Next.js app in `web/` directory
+- FastAPI routes under `/api/*` path
+- Both frontend and backend deploy together
+
+## Package Managers
+
+### Python: uv
 
 This project uses `uv` (not poetry/pip). All dependency management through:
 - `uv sync` - Install dependencies
 - `uv add <package>` - Add new dependency
 - `uv run <command>` - Run commands in virtual environment
+
+### JavaScript: npm
+
+The web application uses npm (package-lock.json committed):
+- `npm install` - Install dependencies
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
 
 ## Model Configuration
 
