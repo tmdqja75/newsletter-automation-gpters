@@ -108,7 +108,7 @@ def run_newsletter_generation(target_date: str = None):
 발행 예정일: {target_date}
 
 ## 작업 순서
-1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요
+1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
 2. topic-selector를 사용하여 3개 메인 토픽 + 1개 스터디 카페 토픽을 선정하세요
 3. 각 토픽에 대해 400-600 단어의 아티클을 작성하세요
 4. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
