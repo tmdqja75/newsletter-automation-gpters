@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 /**
- * Environment variable validation schema
- * Based on env.d.ts declarations
+ * Client-side environment variables (available in browser)
+ * These are prefixed with NEXT_PUBLIC_
  */
-const envSchema = z.object({
+const clientEnvSchema = z.object({
   // Node environment
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
@@ -17,7 +17,14 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, {
     message: 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required',
   }),
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
+});
 
+/**
+ * Server-side environment variables (only available on server)
+ * These should NEVER be exposed to the browser
+ */
+const serverEnvSchema = z.object({
   // Supabase (server-side)
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, {
     message: 'SUPABASE_SERVICE_ROLE_KEY is required',
@@ -35,21 +42,49 @@ const envSchema = z.object({
 });
 
 /**
+ * Combined schema for server-side (includes both client and server vars)
+ */
+const envSchema = clientEnvSchema.merge(serverEnvSchema);
+
+/**
  * Validates and returns typed environment variables
  * Throws error if validation fails
+ *
+ * On the client side (browser), only validates client-side variables.
+ * On the server side (Node.js, tests), validates all variables.
  */
 function validateEnv() {
-  try {
-    const parsed = envSchema.parse({
-      NODE_ENV: process.env.NODE_ENV,
-      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-      RESEND_API_KEY: process.env.RESEND_API_KEY,
-      API_SECRET_KEY: process.env.API_SECRET_KEY,
-    });
+  // Determine if server-only vars are available
+  // In the browser, Next.js doesn't include server-only env vars in the bundle
+  const hasServerVars =
+    process.env.SUPABASE_SERVICE_ROLE_KEY !== undefined ||
+    process.env.RESEND_API_KEY !== undefined ||
+    process.env.API_SECRET_KEY !== undefined;
 
-    return parsed;
+  try {
+    if (hasServerVars) {
+      // Server-side or tests: validate all environment variables
+      const parsed = envSchema.parse({
+        NODE_ENV: process.env.NODE_ENV,
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        RESEND_API_KEY: process.env.RESEND_API_KEY,
+        API_SECRET_KEY: process.env.API_SECRET_KEY,
+      });
+      return parsed;
+    } else {
+      // Client-side (real browser): only validate client-side variables
+      const parsed = clientEnvSchema.parse({
+        NODE_ENV: process.env.NODE_ENV,
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      });
+      // Return with server vars as undefined (they shouldn't be accessed on client anyway)
+      return parsed as z.infer<typeof envSchema>;
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       const missingVars = error.issues
