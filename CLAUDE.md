@@ -200,8 +200,20 @@ web/
 │   ├── layout.tsx         # Root layout
 │   ├── page.tsx           # Home page
 │   └── globals.css        # Global styles
+├── components/            # React components
+│   ├── topic-input.tsx    # Topic input with validation
+│   ├── example-topics.tsx # Example topic chips
+│   └── auth-status.tsx    # Login/logout state display
 ├── lib/                   # Utilities
-│   └── env.ts             # Environment validation
+│   ├── env.ts             # Environment validation
+│   ├── supabase/          # Supabase clients
+│   │   ├── client.ts      # Browser client
+│   │   ├── server.ts      # Server client
+│   │   └── middleware.ts  # Auth middleware
+│   └── validation/        # Validation utilities
+│       ├── topic.ts       # Topic validation schema
+│       └── profanity.ts   # Korean profanity filter
+├── __tests__/             # Test files
 ├── .prettierrc            # Prettier config
 ├── eslint.config.mjs      # ESLint config
 ├── env.d.ts               # TypeScript env types
@@ -308,6 +320,55 @@ Returns: title, URL, HN discussion URL, points, comment count, author, timestamp
 - **Email**: Resend
 - **State Management**: React hooks (no external state library yet)
 - **Validation**: Zod
+
+### Home Screen Implementation (Issue #9)
+
+The home screen (`web/app/page.tsx`) includes:
+
+**Implemented:**
+- Topic input component with validation (5-100 chars, Korean profanity filter)
+- Character counter (0/100) with visual feedback
+- Example topic chips that populate the input when clicked
+- Login/logout state display (UI only, no actual auth flow yet)
+- Toast notifications for validation errors and success messages
+- Responsive design with mobile-first approach
+- Dark mode support
+
+**Components:**
+- `web/components/topic-input.tsx` - Main topic input with form validation
+- `web/components/example-topics.tsx` - Example topic chips
+- `web/components/auth-status.tsx` - Auth state display (shows user email or login button)
+
+**Validation:**
+- `web/lib/validation/topic.ts` - Zod schema for topic validation
+- `web/lib/validation/profanity.ts` - Korean profanity filter using `badwords-ko`
+
+**Future Implementation Required:**
+1. **Login/Logout Flow** (Separate Issue)
+   - Implement actual login form/modal
+   - Add signup functionality
+   - Connect login/logout buttons to Supabase auth
+   - Session persistence and redirect logic
+
+2. **Topic Submission** (Separate Issue)
+   - Create Server Action or API route for topic submission
+   - Save topic to Supabase database
+   - Generate follow-up questions based on topic (as per PRD)
+   - Route to question page after successful submission
+   - Error handling and retry logic
+
+3. **Question Page** (Separate Issue)
+   - Display 3-7 follow-up questions generated from topic
+   - Collect user answers for personalization
+   - Allow skip/submit for each question
+   - Save answers to database
+
+4. **Newsletter Generation** (Separate Issue)
+   - Integrate LangGraph agent for research
+   - Display "리서치 중입니다..." progress indicator
+   - Generate personalized newsletter based on topic + answers
+   - Send newsletter via Resend email service
+   - Show result preview on web
 
 ### Code Style
 
