@@ -3,8 +3,8 @@
 -- Description: Creates 10 tables for user management, topic tracking, personalization,
 --              newsletter generation, feedback, preferences, email tracking, and audit logs
 
--- Enable UUID extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Note: gen_random_uuid() is built into PostgreSQL 13+ (used by Supabase)
+-- No extension needed
 
 -- =============================================================================
 -- 1. USERS TABLE
@@ -48,7 +48,7 @@ COMMENT ON COLUMN users.metadata IS 'Flexible JSONB field for additional user da
 -- User's research topics (one user can have multiple topics)
 -- =============================================================================
 CREATE TABLE user_topics (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
     -- Topic content
@@ -84,7 +84,7 @@ COMMENT ON COLUMN user_topics.is_active IS 'Whether topic is actively being trac
 -- AI-generated personalization questions for topics
 -- =============================================================================
 CREATE TABLE personalization_questions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     topic_id UUID NOT NULL REFERENCES user_topics(id) ON DELETE CASCADE,
 
     -- Question content
@@ -127,7 +127,7 @@ COMMENT ON COLUMN personalization_questions.options IS 'JSONB array of multiple 
 -- User responses to personalization questions
 -- =============================================================================
 CREATE TABLE user_answers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     question_id UUID NOT NULL REFERENCES personalization_questions(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -161,7 +161,7 @@ COMMENT ON COLUMN user_answers.answer_value IS 'Structured answer data (JSONB)';
 -- Newsletter generation tracking (request lifecycle)
 -- =============================================================================
 CREATE TABLE newsletter_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     topic_id UUID NOT NULL REFERENCES user_topics(id) ON DELETE CASCADE,
 
@@ -212,7 +212,7 @@ COMMENT ON COLUMN newsletter_requests.agent_metadata IS 'LangGraph agent executi
 -- Generated newsletter content
 -- =============================================================================
 CREATE TABLE newsletters (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_id UUID NOT NULL REFERENCES newsletter_requests(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     topic_id UUID NOT NULL REFERENCES user_topics(id) ON DELETE CASCADE,
@@ -266,7 +266,7 @@ COMMENT ON COLUMN newsletters.sources IS 'JSONB array of all source links with m
 -- User feedback on newsletters (thumbs up/down + comments)
 -- =============================================================================
 CREATE TABLE newsletter_feedback (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     newsletter_id UUID NOT NULL REFERENCES newsletters(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -308,7 +308,7 @@ COMMENT ON COLUMN newsletter_feedback.detailed_feedback IS 'JSONB for structured
 -- User preferences for newsletter delivery and content
 -- =============================================================================
 CREATE TABLE user_preferences (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
     -- Delivery preferences
@@ -369,7 +369,7 @@ COMMENT ON COLUMN user_preferences.source_blacklist IS 'JSONB array of blocked s
 -- Email tracking (open, click, bounce, etc.)
 -- =============================================================================
 CREATE TABLE email_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     newsletter_id UUID NOT NULL REFERENCES newsletters(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -417,7 +417,7 @@ COMMENT ON COLUMN email_events.clicked_url IS 'URL that was clicked (for clicked
 -- Audit trail for compliance and debugging
 -- =============================================================================
 CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Actor (who performed the action)
     user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- NULL for system actions
