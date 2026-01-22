@@ -76,8 +76,6 @@ describe('TopicInput', () => {
     const user = userEvent.setup();
     render(<TopicInput value="AI" onChange={mockOnChange} />);
 
-    const form = screen.getByRole('button', { name: '리서치 시작하기' })
-      .closest('form')!;
     await user.click(screen.getByText('리서치 시작하기'));
 
     expect(toast.error).toHaveBeenCalledWith(
@@ -151,9 +149,7 @@ describe('TopicInput', () => {
 
   it('should highlight character counter when over limit', () => {
     const overLimitValue = 'a'.repeat(101);
-    const { container } = render(
-      <TopicInput value={overLimitValue} onChange={mockOnChange} />
-    );
+    render(<TopicInput value={overLimitValue} onChange={mockOnChange} />);
 
     const counter = screen.getByText('101 / 100');
     expect(counter).toHaveClass('text-red-500');
