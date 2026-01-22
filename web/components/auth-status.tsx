@@ -56,7 +56,7 @@ export function AuthStatus() {
   return (
     <button
       type="button"
-      className="flex h-10 items-center justify-center rounded-full bg-foreground px-5 text-sm text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+      className="bg-foreground text-background flex h-10 items-center justify-center rounded-full px-5 text-sm transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
     >
       로그인
     </button>

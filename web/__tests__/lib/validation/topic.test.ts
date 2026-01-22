@@ -58,10 +58,7 @@ describe('Topic Validation', () => {
     });
 
     it('should reject topics containing profanity', () => {
-      const profaneTopics = [
-        '개새끼 같은 AI',
-        'AI 에이전트 개새끼',
-      ];
+      const profaneTopics = ['개새끼 같은 AI', 'AI 에이전트 개새끼'];
 
       profaneTopics.forEach((topic) => {
         const result = topicSchema.safeParse(topic);

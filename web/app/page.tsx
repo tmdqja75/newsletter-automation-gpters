@@ -26,7 +26,7 @@ export default function Home() {
 
         <main className="flex flex-1 flex-col items-center justify-center gap-12 px-6 py-16 sm:px-16">
           <div className="flex max-w-3xl flex-col items-center gap-6 text-center">
-            <h2 className="text-4xl font-bold leading-tight tracking-tight text-zinc-950 sm:text-5xl dark:text-zinc-50">
+            <h2 className="text-4xl leading-tight font-bold tracking-tight text-zinc-950 sm:text-5xl dark:text-zinc-50">
               개인화된 리서치 뉴스레터
             </h2>
             <p className="max-w-2xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">

@@ -96,7 +96,9 @@ describe('TopicInput', () => {
 
   it('should show success toast for valid input', async () => {
     const user = userEvent.setup();
-    render(<TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />);
+    render(
+      <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
+    );
 
     await user.click(screen.getByText('리서치 시작하기'));
 
@@ -109,7 +111,9 @@ describe('TopicInput', () => {
 
   it('should show loading state during submission', async () => {
     const user = userEvent.setup();
-    render(<TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />);
+    render(
+      <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
+    );
 
     const submitButton = screen.getByText('리서치 시작하기');
     await user.click(submitButton);
@@ -123,7 +127,9 @@ describe('TopicInput', () => {
 
   it('should disable input and button during submission', async () => {
     const user = userEvent.setup();
-    render(<TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />);
+    render(
+      <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
+    );
 
     const input = screen.getByPlaceholderText('어떤 주제로 리서치해 드릴까요?');
     const submitButton = screen.getByText('리서치 시작하기');
