@@ -43,4 +43,9 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          SKIP_ENV_VALIDATION: true
+          # Dummy environment variables for CI build
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key-for-ci-build-only
+          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key-for-ci-build-only
+          RESEND_API_KEY: re_dummy_api_key_for_ci_build_only
+          API_SECRET_KEY: dummy-api-secret-key-minimum-32-characters-long-for-ci
