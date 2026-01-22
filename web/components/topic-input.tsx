@@ -19,7 +19,7 @@ export function TopicInput({ value, onChange }: TopicInputProps) {
 
     if (!validation.success) {
       const errorMessage =
-        validation.error.errors[0]?.message || '유효하지 않은 주제입니다.';
+        validation.error.issues[0]?.message || '유효하지 않은 주제입니다.';
       toast.error(errorMessage);
       return;
     }

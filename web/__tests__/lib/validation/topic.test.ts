@@ -28,7 +28,7 @@ describe('Topic Validation', () => {
         const result = topicSchema.safeParse(topic);
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error.errors[0]?.message).toBe(
+          expect(result.error.issues[0]?.message).toBe(
             '주제는 최소 5자 이상이어야 합니다.'
           );
         }
@@ -40,14 +40,14 @@ describe('Topic Validation', () => {
       const result = topicSchema.safeParse(longTopic);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0]?.message).toBe(
+        expect(result.error.issues[0]?.message).toBe(
           '주제는 최대 100자까지 입력할 수 있습니다.'
         );
       }
     });
 
     it('should accept topics with exactly 5 characters', () => {
-      const result = topicSchema.safeParse('AI기술');
+      const result = topicSchema.safeParse('AI기술학');
       expect(result.success).toBe(true);
     });
 
@@ -61,14 +61,13 @@ describe('Topic Validation', () => {
       const profaneTopics = [
         '개새끼 같은 AI',
         'AI 에이전트 개새끼',
-        '개새끼',
       ];
 
       profaneTopics.forEach((topic) => {
         const result = topicSchema.safeParse(topic);
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error.errors[0]?.message).toBe(
+          expect(result.error.issues[0]?.message).toBe(
             '부적절한 내용이 포함되어 있습니다.'
           );
         }
@@ -89,8 +88,8 @@ describe('Topic Validation', () => {
       const result = validateTopic('AI');
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors).toHaveLength(1);
-        expect(result.error.errors[0]?.message).toBe(
+        expect(result.error.issues).toHaveLength(1);
+        expect(result.error.issues[0]?.message).toBe(
           '주제는 최소 5자 이상이어야 합니다.'
         );
       }
@@ -100,7 +99,7 @@ describe('Topic Validation', () => {
       const result = validateTopic('개새끼 같은 주제입니다');
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0]?.message).toBe(
+        expect(result.error.issues[0]?.message).toBe(
           '부적절한 내용이 포함되어 있습니다.'
         );
       }

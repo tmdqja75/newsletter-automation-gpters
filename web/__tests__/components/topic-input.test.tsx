@@ -45,7 +45,7 @@ describe('TopicInput', () => {
     expect(screen.getByText('0 / 100')).toBeInTheDocument();
 
     rerender(<TopicInput value="AI 에이전트" onChange={mockOnChange} />);
-    expect(screen.getByText('9 / 100')).toBeInTheDocument();
+    expect(screen.getByText('7 / 100')).toBeInTheDocument();
   });
 
   it('should call onChange when typing in input', async () => {
@@ -150,8 +150,9 @@ describe('TopicInput', () => {
   });
 
   it('should highlight character counter when over limit', () => {
+    const overLimitValue = 'a'.repeat(101);
     const { container } = render(
-      <TopicInput value="a".repeat(101)} onChange={mockOnChange} />
+      <TopicInput value={overLimitValue} onChange={mockOnChange} />
     );
 
     const counter = screen.getByText('101 / 100');
