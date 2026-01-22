@@ -23,6 +23,9 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
+    // Log error for debugging
+    console.error('Login error:', error.message);
+
     // Handle specific error cases
     if (error.message.includes('Email not confirmed')) {
       return {
@@ -42,6 +45,7 @@ export async function login(formData: FormData) {
     };
   }
 
+  // Login successful - redirect to home page
   redirect('/');
 }
 
