@@ -92,7 +92,9 @@ describe('SignupForm', () => {
     it('should render Korean text correctly', () => {
       render(<SignupForm />);
 
-      expect(screen.getByRole('heading', { name: '회원가입' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: '회원가입' })
+      ).toBeInTheDocument();
       expect(screen.getByText('새 계정을 만드세요')).toBeInTheDocument();
       expect(screen.getByText(/이미 계정이 있으신가요?/)).toBeInTheDocument();
     });
@@ -115,9 +117,7 @@ describe('SignupForm', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(
-          screen.getByText('이메일을 입력해주세요')
-        ).toBeInTheDocument();
+        expect(screen.getByText('이메일을 입력해주세요')).toBeInTheDocument();
       });
     });
 
@@ -152,9 +152,7 @@ describe('SignupForm', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(
-          screen.getByText('비밀번호를 입력해주세요')
-        ).toBeInTheDocument();
+        expect(screen.getByText('비밀번호를 입력해주세요')).toBeInTheDocument();
       });
     });
 
@@ -341,9 +339,7 @@ describe('SignupForm', () => {
       // Wait for loading to finish
       await waitFor(
         () => {
-          expect(
-            screen.queryByText('회원가입 중...')
-          ).not.toBeInTheDocument();
+          expect(screen.queryByText('회원가입 중...')).not.toBeInTheDocument();
         },
         { timeout: 200 }
       );
@@ -412,9 +408,7 @@ describe('SignupForm', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(
-          screen.getByText('이메일을 확인해주세요')
-        ).toBeInTheDocument();
+        expect(screen.getByText('이메일을 확인해주세요')).toBeInTheDocument();
       });
     });
 
@@ -444,7 +438,9 @@ describe('SignupForm', () => {
           screen.getByText(/회원가입이 완료되었습니다/)
         ).toBeInTheDocument();
         expect(
-          screen.getByText(/이메일에서 인증 링크를 클릭하여 가입을 완료해주세요/)
+          screen.getByText(
+            /이메일에서 인증 링크를 클릭하여 가입을 완료해주세요/
+          )
         ).toBeInTheDocument();
       });
     });
@@ -560,9 +556,7 @@ describe('SignupForm', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(
-          '이미 존재하는 이메일입니다.'
-        );
+        expect(toast.error).toHaveBeenCalledWith('이미 존재하는 이메일입니다.');
       });
     });
 
@@ -645,7 +639,9 @@ describe('SignupForm', () => {
       });
 
       // Button should not be in loading state
-      expect(screen.getByRole('button', { name: '회원가입' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: '회원가입' })
+      ).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: '회원가입 중...' })
       ).not.toBeInTheDocument();
@@ -684,9 +680,7 @@ describe('SignupForm', () => {
 
       // Step 5: Verify success
       await waitFor(() => {
-        expect(
-          screen.getByText('이메일을 확인해주세요')
-        ).toBeInTheDocument();
+        expect(screen.getByText('이메일을 확인해주세요')).toBeInTheDocument();
       });
 
       // Step 6: Verify login link is available

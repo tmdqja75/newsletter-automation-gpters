@@ -155,9 +155,7 @@ describe('Authentication Validation', () => {
         expect(result.success).toBe(false);
         if (!result.success) {
           expect(result.error.issues[0].path).toContain('email');
-          expect(result.error.issues[0].message).toBe(
-            '이메일을 입력해주세요'
-          );
+          expect(result.error.issues[0].message).toBe('이메일을 입력해주세요');
         }
       });
 
@@ -338,7 +336,8 @@ describe('Authentication Validation', () => {
       });
 
       it('should accept long matching passwords', () => {
-        const longPassword = 'very-long-password-with-many-characters-123456789';
+        const longPassword =
+          'very-long-password-with-many-characters-123456789';
         const validInput = {
           email: 'test@example.com',
           password: longPassword,
@@ -453,9 +452,7 @@ describe('Authentication Validation', () => {
         expect(result.success).toBe(false);
         if (!result.success) {
           expect(result.error.issues[0].path).toContain('email');
-          expect(result.error.issues[0].message).toBe(
-            '이메일을 입력해주세요'
-          );
+          expect(result.error.issues[0].message).toBe('이메일을 입력해주세요');
         }
       });
 

@@ -177,9 +177,7 @@ describe('LoginForm', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(
-          screen.getByText('비밀번호를 입력해주세요')
-        ).toBeInTheDocument();
+        expect(screen.getByText('비밀번호를 입력해주세요')).toBeInTheDocument();
       });
     });
 
@@ -633,7 +631,9 @@ describe('LoginForm', () => {
       expect(screen.getByText('비밀번호')).toBeInTheDocument();
 
       // Button text
-      expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: '로그인' })
+      ).toBeInTheDocument();
 
       // Signup link text
       expect(screen.getByText('계정이 없으신가요?')).toBeInTheDocument();
