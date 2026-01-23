@@ -96,7 +96,9 @@ describe('Auth Server Actions', () => {
           message: 'Invalid login credentials',
           name: 'AuthApiError',
           status: 400,
-        },
+          code: 'invalid_credentials',
+          __isAuthError: true,
+        } as any,
       });
 
       const formData = new FormData();
@@ -121,7 +123,9 @@ describe('Auth Server Actions', () => {
           message: 'Email not confirmed',
           name: 'AuthApiError',
           status: 400,
-        },
+          code: 'email_not_confirmed',
+          __isAuthError: true,
+        } as any,
       });
 
       const formData = new FormData();
@@ -210,7 +214,9 @@ describe('Auth Server Actions', () => {
           message: 'Unknown error occurred',
           name: 'AuthApiError',
           status: 500,
-        },
+          code: 'unknown_error',
+          __isAuthError: true,
+        } as any,
       });
 
       const formData = new FormData();
@@ -282,7 +288,9 @@ describe('Auth Server Actions', () => {
           message: 'User already registered',
           name: 'AuthApiError',
           status: 400,
-        },
+          code: 'user_already_exists',
+          __isAuthError: true,
+        } as any,
       });
 
       const formData = new FormData();
@@ -410,7 +418,9 @@ describe('Auth Server Actions', () => {
           message: 'Internal server error',
           name: 'AuthApiError',
           status: 500,
-        },
+          code: 'internal_server_error',
+          __isAuthError: true,
+        } as any,
       });
 
       const formData = new FormData();
@@ -490,7 +500,9 @@ describe('Auth Server Actions', () => {
           message: 'Logout failed',
           name: 'AuthApiError',
           status: 500,
-        },
+          code: 'logout_failed',
+          __isAuthError: true,
+        } as any,
       });
 
       const { logout } = await import('@/lib/actions/auth');
