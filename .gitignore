@@ -52,7 +52,6 @@ Thumbs.db
 
 # Project specific
 articles/**/draft_*
-.claude/
 
 # Next.js
 web/.next/
