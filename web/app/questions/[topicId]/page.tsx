@@ -45,7 +45,9 @@ export default function QuestionsPage() {
         // Load questions
         const questionsResult = await getQuestionsByTopicId(topicId);
         if (!questionsResult.success || !questionsResult.questions) {
-          toast.error(questionsResult.message || '질문을 불러오는데 실패했습니다.');
+          toast.error(
+            questionsResult.message || '질문을 불러오는데 실패했습니다.'
+          );
           return;
         }
 
