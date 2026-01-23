@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useTransition } from 'react';
+import { FormEvent, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { validateTopic } from '@/lib/validation/topic';

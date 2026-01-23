@@ -193,7 +193,9 @@ describe('Topic Actions', () => {
       const result = await createTopic(formData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('주제 생성에 실패했습니다. 다시 시도해주세요.');
+      expect(result.message).toBe(
+        '주제 생성에 실패했습니다. 다시 시도해주세요.'
+      );
     });
   });
 

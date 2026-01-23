@@ -83,13 +83,13 @@ describe('Question Actions', () => {
       });
 
       const result = await getQuestionsByTopicId(
-        '550e8400-e29b-41d4-a716-446655440002',
+        '550e8400-e29b-41d4-a716-446655440002'
       );
 
       expect(result.success).toBe(true);
       expect(result.questions).toHaveLength(1);
       expect(result.questions?.[0]?.question_text).toBe(
-        '이 주제를 알아보는 목적이 무엇인가요?',
+        '이 주제를 알아보는 목적이 무엇인가요?'
       );
     });
 
@@ -100,7 +100,7 @@ describe('Question Actions', () => {
       });
 
       const result = await getQuestionsByTopicId(
-        '550e8400-e29b-41d4-a716-446655440002',
+        '550e8400-e29b-41d4-a716-446655440002'
       );
 
       expect(result.success).toBe(false);
@@ -124,7 +124,7 @@ describe('Question Actions', () => {
       });
 
       const result = await getQuestionsByTopicId(
-        '550e8400-e29b-41d4-a716-446655440002',
+        '550e8400-e29b-41d4-a716-446655440002'
       );
 
       expect(result.success).toBe(false);
@@ -167,7 +167,7 @@ describe('Question Actions', () => {
 
       const result = await saveAnswers(
         '550e8400-e29b-41d4-a716-446655440002',
-        answers,
+        answers
       );
 
       expect(result.success).toBe(true);
@@ -182,7 +182,7 @@ describe('Question Actions', () => {
 
       const result = await saveAnswers(
         '550e8400-e29b-41d4-a716-446655440002',
-        [],
+        []
       );
 
       expect(result.success).toBe(false);
@@ -227,7 +227,7 @@ describe('Question Actions', () => {
 
       const result = await saveAnswers(
         '550e8400-e29b-41d4-a716-446655440002',
-        answers,
+        answers
       );
 
       expect(result.success).toBe(true);
@@ -260,7 +260,7 @@ describe('Question Actions', () => {
 
       const result = await saveAnswers(
         '550e8400-e29b-41d4-a716-446655440002',
-        answers,
+        answers
       );
 
       expect(result.success).toBe(false);
@@ -299,12 +299,12 @@ describe('Question Actions', () => {
 
       const result = await saveAnswers(
         '550e8400-e29b-41d4-a716-446655440002',
-        answers,
+        answers
       );
 
       expect(result.success).toBe(false);
       expect(result.message).toBe(
-        '답변 저장에 실패했습니다. 다시 시도해주세요.',
+        '답변 저장에 실패했습니다. 다시 시도해주세요.'
       );
     });
   });
@@ -340,7 +340,7 @@ describe('Question Actions', () => {
       });
 
       const result = await getUserAnswers(
-        '550e8400-e29b-41d4-a716-446655440002',
+        '550e8400-e29b-41d4-a716-446655440002'
       );
 
       expect(result.success).toBe(true);
@@ -354,7 +354,7 @@ describe('Question Actions', () => {
       });
 
       const result = await getUserAnswers(
-        '550e8400-e29b-41d4-a716-446655440002',
+        '550e8400-e29b-41d4-a716-446655440002'
       );
 
       expect(result.success).toBe(false);

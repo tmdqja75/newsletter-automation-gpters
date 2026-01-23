@@ -22,7 +22,7 @@ export const questionSchema = z.object({
   is_required: z.boolean(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // Answer validation for different question types
@@ -55,14 +55,16 @@ export const answerSchema = z.discriminatedUnion('type', [
 export const userAnswerSchema = z.object({
   question_id: z.string().uuid(),
   answer_text: z.string().nullable().optional(),
-  answer_value: z.record(z.unknown()).nullable().optional(),
+  answer_value: z.record(z.string(), z.unknown()).nullable().optional(),
   skipped: z.boolean().default(false),
 });
 
 // Bulk answer submission
 export const saveAnswersSchema = z.object({
   topic_id: z.string().uuid(),
-  answers: z.array(userAnswerSchema).min(1, '최소 1개 이상의 답변이 필요합니다'),
+  answers: z
+    .array(userAnswerSchema)
+    .min(1, '최소 1개 이상의 답변이 필요합니다'),
 });
 
 // Question with answer (for form state)
@@ -84,7 +86,7 @@ export type QuestionWithAnswer = z.infer<typeof questionWithAnswerSchema>;
 
 // Helper function to get answer type from question type
 export function getAnswerTypeFromQuestionType(
-  questionType: QuestionType,
+  questionType: QuestionType
 ): 'radio' | 'checkbox' | 'text' {
   switch (questionType) {
     case 'goal':
@@ -106,7 +108,7 @@ export function getAnswerTypeFromQuestionType(
 export function validateAnswerForQuestion(
   question: Question,
   answer: Answer | undefined,
-  skipped: boolean,
+  skipped: boolean
 ): { valid: boolean; error?: string } {
   // If skipped and not required, it's valid
   if (skipped && !question.is_required) {
@@ -135,7 +137,7 @@ export function validateAnswerForQuestion(
     return { valid: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { valid: false, error: error.errors[0]?.message };
+      return { valid: false, error: error.issues[0]?.message };
     }
     return { valid: false, error: '답변이 올바르지 않습니다' };
   }

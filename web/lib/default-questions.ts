@@ -3,7 +3,13 @@
 
 export interface DefaultQuestion {
   question_text: string;
-  question_type: 'goal' | 'difficulty' | 'scope' | 'time' | 'source' | 'subtopic';
+  question_type:
+    | 'goal'
+    | 'difficulty'
+    | 'scope'
+    | 'time'
+    | 'source'
+    | 'subtopic';
   options: string[];
   display_order: number;
   is_required: boolean;
@@ -27,7 +33,12 @@ export const defaultQuestions: DefaultQuestion[] = [
   {
     question_text: '뉴스레터 분량은 어느 정도가 좋을까요?',
     question_type: 'time',
-    options: ['3분 (빠른 요약)', '5분 (핵심 정리)', '10분 (상세 설명)', '15분+ (깊이 있는 분석)'],
+    options: [
+      '3분 (빠른 요약)',
+      '5분 (핵심 정리)',
+      '10분 (상세 설명)',
+      '15분+ (깊이 있는 분석)',
+    ],
     display_order: 3,
     is_required: true,
   },

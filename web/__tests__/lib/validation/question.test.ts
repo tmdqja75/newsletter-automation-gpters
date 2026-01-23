@@ -257,7 +257,7 @@ describe('Question Validation Schemas', () => {
   describe('validateAnswerForQuestion', () => {
     const createQuestion = (
       type: Question['question_type'],
-      required: boolean,
+      required: boolean
     ): Question => ({
       id: '550e8400-e29b-41d4-a716-446655440000',
       topic_id: '550e8400-e29b-41d4-a716-446655440001',

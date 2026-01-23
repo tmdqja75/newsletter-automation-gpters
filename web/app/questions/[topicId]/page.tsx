@@ -35,8 +35,8 @@ export default function QuestionsPage() {
       try {
         // Load topic
         const topicResult = await getTopicById(topicId);
-        if (!topicResult.success) {
-          toast.error(topicResult.message);
+        if (!topicResult.success || !topicResult.topic) {
+          toast.error(topicResult.message || '주제를 불러오는데 실패했습니다.');
           router.push('/');
           return;
         }
@@ -44,8 +44,8 @@ export default function QuestionsPage() {
 
         // Load questions
         const questionsResult = await getQuestionsByTopicId(topicId);
-        if (!questionsResult.success) {
-          toast.error(questionsResult.message);
+        if (!questionsResult.success || !questionsResult.questions) {
+          toast.error(questionsResult.message || '질문을 불러오는데 실패했습니다.');
           return;
         }
 
@@ -61,7 +61,7 @@ export default function QuestionsPage() {
             answer: undefined,
             skipped: false,
             error: undefined,
-          })),
+          }))
         );
       } catch (error) {
         console.error('Error loading questions:', error);
@@ -84,8 +84,8 @@ export default function QuestionsPage() {
               skipped: false,
               error: undefined,
             }
-          : state,
-      ),
+          : state
+      )
     );
   };
 
@@ -99,8 +99,8 @@ export default function QuestionsPage() {
               skipped: !state.skipped,
               error: undefined,
             }
-          : state,
-      ),
+          : state
+      )
     );
   };
 
@@ -110,7 +110,7 @@ export default function QuestionsPage() {
       const validation = validateAnswerForQuestion(
         state.question,
         state.answer,
-        state.skipped,
+        state.skipped
       );
       if (!validation.valid) {
         isValid = false;
@@ -135,7 +135,7 @@ export default function QuestionsPage() {
 
     // Check if at least one question is answered
     const answeredCount = questionStates.filter(
-      (state) => !state.skipped && state.answer,
+      (state) => !state.skipped && state.answer
     ).length;
 
     if (answeredCount === 0) {
@@ -177,7 +177,7 @@ export default function QuestionsPage() {
   };
 
   const answeredCount = questionStates.filter(
-    (state) => !state.skipped && state.answer,
+    (state) => !state.skipped && state.answer
   ).length;
   const totalCount = questionStates.length;
   const progressPercentage =
@@ -196,7 +196,7 @@ export default function QuestionsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-black">
-      <header className="w-full border-b border-gray-200 px-6 py-4 dark:border-gray-800 sm:px-16">
+      <header className="w-full border-b border-gray-200 px-6 py-4 sm:px-16 dark:border-gray-800">
         <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
           Automata
         </h1>

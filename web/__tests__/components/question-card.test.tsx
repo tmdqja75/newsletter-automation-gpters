@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuestionCard } from '@/components/question-card';
@@ -11,7 +11,7 @@ describe('QuestionCard', () => {
   const createQuestion = (
     type: Question['question_type'],
     required: boolean = false,
-    options: string[] = [],
+    options: string[] = []
   ): Question => ({
     id: '550e8400-e29b-41d4-a716-446655440000',
     topic_id: '550e8400-e29b-41d4-a716-446655440001',
@@ -41,7 +41,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.getByText('테스트 질문입니다')).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const radioOption = screen.getByLabelText('업무');
@@ -84,7 +84,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const radioOption = screen.getByLabelText('업무') as HTMLInputElement;
@@ -106,7 +106,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.getByText('공식 문서')).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const checkbox = screen.getByLabelText('공식 문서');
@@ -153,7 +153,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const checkbox = screen.getByLabelText('학술 논문');
@@ -179,7 +179,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const checkbox = screen.getByLabelText('공식 문서');
@@ -202,11 +202,11 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(
-        screen.getByPlaceholderText('답변을 입력해주세요'),
+        screen.getByPlaceholderText('답변을 입력해주세요')
       ).toBeInTheDocument();
       expect(screen.getByText('0/500')).toBeInTheDocument();
     });
@@ -221,7 +221,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const input = screen.getByPlaceholderText('답변을 입력해주세요');
@@ -240,7 +240,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.getByText('10/500')).toBeInTheDocument();
@@ -257,7 +257,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.getByText('스킵')).toBeInTheDocument();
@@ -272,7 +272,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.queryByText('스킵')).not.toBeInTheDocument();
@@ -288,7 +288,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       const skipButton = screen.getByText('스킵');
@@ -307,7 +307,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={true}
-        />,
+        />
       );
 
       expect(screen.getByText(/이 질문을 건너뛰었습니다/)).toBeInTheDocument();
@@ -326,7 +326,7 @@ describe('QuestionCard', () => {
           onSkip={mockOnSkip}
           skipped={false}
           error="필수 질문입니다"
-        />,
+        />
       );
 
       expect(screen.getByText('필수 질문입니다')).toBeInTheDocument();
@@ -342,7 +342,7 @@ describe('QuestionCard', () => {
           onSkip={mockOnSkip}
           skipped={true}
           error="필수 질문입니다"
-        />,
+        />
       );
 
       expect(screen.queryByText('필수 질문입니다')).not.toBeInTheDocument();
@@ -359,7 +359,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.getByLabelText('업무')).toBeInTheDocument();
@@ -378,7 +378,7 @@ describe('QuestionCard', () => {
           onChange={mockOnChange}
           onSkip={mockOnSkip}
           skipped={false}
-        />,
+        />
       );
 
       expect(screen.getByLabelText('공식 문서')).toBeInTheDocument();

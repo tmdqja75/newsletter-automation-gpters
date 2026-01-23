@@ -154,7 +154,7 @@ export async function getUserAnswers(topicId: string) {
       `
       *,
       personalization_questions!inner(topic_id)
-    `,
+    `
     )
     .eq('user_id', user.id)
     .eq('personalization_questions.topic_id', topicId);

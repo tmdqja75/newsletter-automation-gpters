@@ -8,7 +8,7 @@ export async function createTopic(formData: FormData) {
   const topicText = formData.get('topic') as string;
 
   // Validate input
-  const result = topicSchema.safeParse({ topic: topicText });
+  const result = topicSchema.safeParse(topicText);
   if (!result.success) {
     const firstError = result.error.issues[0];
     return { success: false, message: firstError.message };
@@ -57,7 +57,7 @@ export async function createTopic(formData: FormData) {
     .from('user_topics')
     .insert({
       user_id: user.id,
-      topic_text: result.data.topic,
+      topic_text: result.data,
       is_active: true,
     })
     .select('id, topic_text')
