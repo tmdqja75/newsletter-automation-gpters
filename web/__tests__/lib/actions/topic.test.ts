@@ -16,24 +16,38 @@ vi.mock('@/lib/supabase/server', () => ({
     },
     from: mockFrom,
   })),
+  createAdminClient: vi.fn(() => ({
+    from: mockFrom,
+  })),
 }));
 
 describe('Topic Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Setup default mock behavior
     mockFrom.mockReturnValue({
       select: mockSelect,
       insert: mockInsert,
     });
+
     mockSelect.mockReturnValue({
       eq: mockEq,
+      single: mockSingle,
     });
-    mockInsert.mockReturnValue({
-      select: mockSelect,
-    });
+
     mockEq.mockReturnValue({
       single: mockSingle,
       eq: mockEq,
+    });
+
+    // Default mockInsert behavior - returns object with both error (for direct use) and select method (for chaining)
+    mockInsert.mockReturnValue({
+      error: null,
+      data: null,
+      select: vi.fn().mockReturnValue({
+        single: mockSingle,
+      }),
     });
   });
 
@@ -65,11 +79,7 @@ describe('Topic Actions', () => {
         error: null,
       });
 
-      // Mock questions insertion (no error)
-      mockInsert.mockResolvedValueOnce({
-        data: null,
-        error: null,
-      });
+      // No need to mock questions insertion - default mockInsert returns { error: null }
 
       const formData = new FormData();
       formData.append('topic', 'AI 에이전트 최신 동향');
@@ -134,11 +144,7 @@ describe('Topic Actions', () => {
         error: { code: 'PGRST116' },
       });
 
-      // Mock user creation
-      mockInsert.mockResolvedValueOnce({
-        data: null,
-        error: null,
-      });
+      // No need to mock user creation - default mockInsert returns { error: null }
 
       // Mock topic creation
       mockSingle.mockResolvedValueOnce({
@@ -149,11 +155,7 @@ describe('Topic Actions', () => {
         error: null,
       });
 
-      // Mock questions insertion
-      mockInsert.mockResolvedValueOnce({
-        data: null,
-        error: null,
-      });
+      // No need to mock questions insertion - default mockInsert returns { error: null }
 
       const formData = new FormData();
       formData.append('topic', 'AI 에이전트 최신 동향');
@@ -251,7 +253,7 @@ describe('Topic Actions', () => {
         error: null,
       });
 
-      mockSingle.mockResolvedValue({
+      mockSingle.mockResolvedValueOnce({
         data: null,
         error: { code: 'PGRST116', message: 'Not found' },
       });

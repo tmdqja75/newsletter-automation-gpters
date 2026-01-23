@@ -201,6 +201,8 @@ web/
 │   │   ├── login/         # Login page
 │   │   ├── signup/        # Signup page
 │   │   └── layout.tsx     # Centered auth layout
+│   ├── questions/[topicId]/ # Question collection page
+│   │   └── page.tsx       # Questions page with progress tracking
 │   ├── api/auth/callback/ # Email confirmation callback
 │   ├── layout.tsx         # Root layout with Toaster
 │   ├── page.tsx           # Landing page (topic input)
@@ -214,11 +216,14 @@ web/
 │   │   ├── button.tsx     # Reusable button
 │   │   ├── input.tsx      # Reusable input
 │   │   └── label.tsx      # Reusable label
+│   ├── question-card.tsx  # Question card component (radio/checkbox/text)
 │   ├── topic-input.tsx    # Topic input with validation
 │   └── example-topics.tsx # Example topic chips
 ├── lib/                   # Utilities
 │   ├── actions/           # Server actions
-│   │   └── auth.ts        # Login, signup, logout
+│   │   ├── auth.ts        # Login, signup, logout
+│   │   ├── topic.ts       # Topic creation, retrieval
+│   │   └── question.ts    # Question & answer management
 │   ├── supabase/          # Supabase clients
 │   │   ├── client.ts      # Browser client
 │   │   ├── server.ts      # Server client
@@ -226,16 +231,25 @@ web/
 │   ├── validation/        # Validation schemas
 │   │   ├── auth.ts        # Auth validation (Zod)
 │   │   ├── topic.ts       # Topic validation (Zod)
+│   │   ├── question.ts    # Question & answer validation (Zod)
 │   │   └── profanity.ts   # Korean profanity filter
+│   ├── default-questions.ts # Default question templates (6 questions)
 │   ├── env.ts             # Environment validation
 │   └── utils.ts           # Utility functions (cn)
 ├── types/                 # TypeScript declarations
 │   └── badwords-ko.d.ts   # Type defs for badwords-ko
 ├── __tests__/             # Test files
-│   ├── components/auth/   # Auth component tests
-│   ├── lib/actions/       # Server action tests
-│   ├── lib/validation/    # Validation tests
-│   └── lib/supabase/      # Supabase client tests
+│   ├── components/        # Component tests
+│   │   ├── auth/          # Auth component tests
+│   │   └── question-card.test.tsx # Question card tests
+│   ├── lib/
+│   │   ├── actions/       # Server action tests
+│   │   │   ├── auth.test.ts
+│   │   │   ├── topic.test.ts
+│   │   │   └── question.test.ts
+│   │   ├── validation/    # Validation tests
+│   │   │   └── question.test.ts
+│   │   └── supabase/      # Supabase client tests
 ├── .prettierrc            # Prettier config
 ├── eslint.config.mjs      # ESLint config
 ├── env.d.ts               # TypeScript env types
@@ -368,32 +382,39 @@ The home screen (`web/app/page.tsx`) includes:
 - `web/lib/validation/topic.ts` - Zod schema for topic validation
 - `web/lib/validation/profanity.ts` - Korean profanity filter using `badwords-ko`
 
-**Future Implementation Required:**
-1. **Login/Logout Flow** (Separate Issue)
-   - Implement actual login form/modal
-   - Add signup functionality
-   - Connect login/logout buttons to Supabase auth
-   - Session persistence and redirect logic
+**Completed Features:**
+1. ✅ **Login/Logout Flow** (Issue #6)
+   - Supabase Auth with email/password
+   - Email confirmation workflow
+   - Session management via middleware
 
-2. **Topic Submission** (Separate Issue)
-   - Create Server Action or API route for topic submission
+2. ✅ **Topic Submission** (Issue #10)
+   - Server Action for topic creation
    - Save topic to Supabase database
-   - Generate follow-up questions based on topic (as per PRD)
-   - Route to question page after successful submission
-   - Error handling and retry logic
+   - Automatic generation of 6 default questions
+   - Navigation to question page after submission
 
-3. **Question Page** (Separate Issue)
-   - Display 3-7 follow-up questions generated from topic
-   - Collect user answers for personalization
-   - Allow skip/submit for each question
+3. ✅ **Question Page** (Issue #10)
+   - Display 6 personalization questions
+   - Support for radio, checkbox, and text input types
+   - Skip functionality for optional questions
    - Save answers to database
 
-4. **Newsletter Generation** (Separate Issue)
+**Future Implementation Required:**
+1. **Newsletter Generation** (Next Issue)
    - Integrate LangGraph agent for research
    - Display "리서치 중입니다..." progress indicator
    - Generate personalized newsletter based on topic + answers
    - Send newsletter via Resend email service
    - Show result preview on web
+
+2. **Dynamic Question Generation** (Future Enhancement)
+   - LLM-based question generation based on topic content
+   - Adaptive questions based on user profile
+
+3. **Newsletter Archive** (Future)
+   - View past generated newsletters
+   - Bookmark and share functionality
 
 ### Code Style
 

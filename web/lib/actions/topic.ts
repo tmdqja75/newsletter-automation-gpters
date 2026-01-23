@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { topicSchema } from '@/lib/validation/topic';
 import { defaultQuestions } from '@/lib/default-questions';
 
@@ -37,7 +37,9 @@ export async function createTopic(formData: FormData) {
     .single();
 
   if (!existingUser) {
-    const { error: userCreateError } = await supabase.from('users').insert({
+    // Use admin client to bypass RLS for user creation
+    const adminClient = createAdminClient();
+    const { error: userCreateError } = await adminClient.from('users').insert({
       id: user.id,
       email: user.email!,
       is_email_verified: user.email_confirmed_at !== null,
@@ -81,15 +83,18 @@ export async function createTopic(formData: FormData) {
     is_required: q.is_required,
   }));
 
-  const { error: questionsError } = await supabase
+  // Use admin client to bypass RLS for question creation
+  const adminClient = createAdminClient();
+  const { error: questionsError } = await adminClient
     .from('personalization_questions')
     .insert(questionsToInsert);
 
   if (questionsError) {
     console.error('Error creating questions:', questionsError);
-    // Don't fail the entire operation if questions fail
-    // The topic is already created, so return success
-    // but log the error for debugging
+    return {
+      success: false,
+      message: '질문 생성에 실패했습니다. 다시 시도해주세요.',
+    };
   }
 
   return {
