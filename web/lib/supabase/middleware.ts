@@ -45,15 +45,34 @@ export async function updateSession(request: NextRequest) {
 
   // Refresh session if expired - required for Server Components
   // https://supabase.com/docs/guides/auth/server-side/nextjs
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Optionally protect routes (example)
-  // const { data: { user } } = await supabase.auth.getUser();
-  // if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = '/login'
-  //   return NextResponse.redirect(url)
-  // }
+  // Protected routes
+  const protectedRoutes = ['/dashboard', '/settings'];
+
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route)
+  );
+
+  // Redirect unauthenticated users from protected routes to login
+  if (!user && isProtectedRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect authenticated users from login/signup to home
+  if (
+    user &&
+    (request.nextUrl.pathname === '/login' ||
+      request.nextUrl.pathname === '/signup')
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }

@@ -197,23 +197,45 @@ articles/{YYYY-MM-DD}/     # Generated articles by date
 # Web Application (Next.js)
 web/
 ├── app/                   # Next.js App Router
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Home page
+│   ├── (auth)/            # Auth route group
+│   │   ├── login/         # Login page
+│   │   ├── signup/        # Signup page
+│   │   └── layout.tsx     # Centered auth layout
+│   ├── api/auth/callback/ # Email confirmation callback
+│   ├── layout.tsx         # Root layout with Toaster
+│   ├── page.tsx           # Landing page (topic input)
 │   └── globals.css        # Global styles
 ├── components/            # React components
+│   ├── auth/              # Auth components
+│   │   ├── auth-status.tsx    # Login/logout state display
+│   │   ├── login-form.tsx     # Login form
+│   │   └── signup-form.tsx    # Signup form
+│   ├── ui/                # Base UI components
+│   │   ├── button.tsx     # Reusable button
+│   │   ├── input.tsx      # Reusable input
+│   │   └── label.tsx      # Reusable label
 │   ├── topic-input.tsx    # Topic input with validation
-│   ├── example-topics.tsx # Example topic chips
-│   └── auth-status.tsx    # Login/logout state display
+│   └── example-topics.tsx # Example topic chips
 ├── lib/                   # Utilities
-│   ├── env.ts             # Environment validation
+│   ├── actions/           # Server actions
+│   │   └── auth.ts        # Login, signup, logout
 │   ├── supabase/          # Supabase clients
 │   │   ├── client.ts      # Browser client
 │   │   ├── server.ts      # Server client
 │   │   └── middleware.ts  # Auth middleware
-│   └── validation/        # Validation utilities
-│       ├── topic.ts       # Topic validation schema
-│       └── profanity.ts   # Korean profanity filter
+│   ├── validation/        # Validation schemas
+│   │   ├── auth.ts        # Auth validation (Zod)
+│   │   ├── topic.ts       # Topic validation (Zod)
+│   │   └── profanity.ts   # Korean profanity filter
+│   ├── env.ts             # Environment validation
+│   └── utils.ts           # Utility functions (cn)
+├── types/                 # TypeScript declarations
+│   └── badwords-ko.d.ts   # Type defs for badwords-ko
 ├── __tests__/             # Test files
+│   ├── components/auth/   # Auth component tests
+│   ├── lib/actions/       # Server action tests
+│   ├── lib/validation/    # Validation tests
+│   └── lib/supabase/      # Supabase client tests
 ├── .prettierrc            # Prettier config
 ├── eslint.config.mjs      # ESLint config
 ├── env.d.ts               # TypeScript env types
@@ -317,9 +339,12 @@ Returns: title, URL, HN discussion URL, points, comment count, author, timestamp
 - **Linting**: ESLint with Next.js and TypeScript rules
 - **Formatting**: Prettier with Tailwind CSS plugin
 - **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth (email/password with confirmation)
 - **Email**: Resend
-- **State Management**: React hooks (no external state library yet)
+- **Forms**: React Hook Form with Zod validation
+- **State Management**: React hooks + useTransition
 - **Validation**: Zod
+- **Profanity Filter**: badwords-ko (Korean)
 
 ### Home Screen Implementation (Issue #9)
 
@@ -402,6 +427,221 @@ export async function GET(request: Request) {
 }
 ```
 
+### Authentication Implementation
+
+**Status:** ✅ Implemented (Issue #6)
+
+The application uses **Supabase Auth** with email/password authentication:
+
+#### Authentication Flow
+
+1. **Signup** (`/signup`)
+   - User enters email, password, and password confirmation
+   - Form validated with react-hook-form + Zod
+   - Server action calls `supabase.auth.signUp()` with email confirmation required
+   - User receives confirmation email
+   - Cannot login until email is confirmed
+
+2. **Email Confirmation**
+   - User clicks link in email
+   - Redirected to `/api/auth/callback` which exchanges code for session
+   - Session stored in cookies
+   - User can now login
+
+3. **Login** (`/login`)
+   - User enters email and password
+   - Form validated with react-hook-form + Zod
+   - Server action calls `supabase.auth.signInWithPassword()`
+   - On success: redirects to home page using Next.js `redirect()`
+   - Uses `useTransition` to handle redirect properly
+
+4. **Session Management**
+   - Middleware (`web/lib/supabase/middleware.ts`) runs on every request
+   - Automatically refreshes expired sessions
+   - Cookies managed by Supabase SSR package
+
+5. **Logout**
+   - Calls `supabase.auth.signOut()`
+   - Clears session cookies
+   - Redirects to home page
+
+#### Protected Routes
+
+The middleware protects routes by checking authentication:
+- **Protected:** `/dashboard`, `/settings` → redirect to `/login` if not authenticated
+- **Public:** `/`, `/login`, `/signup`, `/api/auth/callback`
+- **Auth redirect:** logged-in users accessing `/login` or `/signup` → redirect to home
+
+#### Components
+
+- **AuthStatus** (`components/auth/auth-status.tsx`)
+  - Shows user email when logged in with logout button
+  - Shows login/signup buttons when logged out
+  - Real-time updates via `supabase.auth.onAuthStateChange()`
+
+- **LoginForm** (`components/auth/login-form.tsx`)
+  - Email + password fields
+  - React Hook Form with Zod validation
+  - useTransition for proper redirect handling
+  - Korean error messages
+
+- **SignupForm** (`components/auth/signup-form.tsx`)
+  - Email + password + confirm password
+  - Shows success screen after signup
+  - Korean error messages
+
+#### Server Actions
+
+Located in `web/lib/actions/auth.ts`:
+
+```typescript
+// Login with password
+export async function login(formData: FormData)
+
+// Signup with email confirmation
+export async function signup(formData: FormData)
+
+// Logout and redirect
+export async function logout()
+```
+
+All actions return `{ success: boolean, message: string }` with Korean messages.
+
+#### Validation
+
+- **Auth validation** (`web/lib/validation/auth.ts`)
+  - Email format validation
+  - Password minimum 8 characters
+  - Password confirmation matching
+  - Korean error messages
+
+- **Topic validation** (`web/lib/validation/topic.ts`)
+  - 5-100 character limit
+  - Korean profanity filter using `badwords-ko`
+
+#### Environment Variables
+
+Client-side (browser):
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000  # For email redirects
+```
+
+Server-side only (never sent to browser):
+```bash
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+RESEND_API_KEY=your_resend_key
+API_SECRET_KEY=your_secret_key_min_32_chars
+```
+
+**Important:** `lib/env.ts` validates server-only vars only when available (server/tests), avoiding browser errors.
+
+#### Supabase Configuration Required
+
+In Supabase Dashboard:
+1. Go to Authentication → Settings → Email Auth
+2. Enable "Confirm email" option
+3. Set Site URL to your app URL (`http://localhost:3000` for dev)
+4. Email templates use default Supabase templates
+
+### Landing Page
+
+**Status:** ✅ Implemented (from issue-9, restored in issue-6)
+
+The landing page (`/`) features:
+
+#### Components
+
+- **TopicInput** (`components/topic-input.tsx`)
+  - Text input with 5-100 character validation
+  - Korean profanity filter
+  - Character counter (0/100)
+  - Submit button with loading state
+  - Korean placeholder: "어떤 주제로 리서치해 드릴까요?"
+  - Toast notifications for validation errors
+
+- **ExampleTopics** (`components/example-topics.tsx`)
+  - Clickable topic chips that populate the input
+  - Topics: "AI 에이전트 최신 동향", "LLM 프롬프팅 기법", "RAG 시스템 구현 방법"
+
+- **AuthStatus** (in header)
+  - Shows user email + logout button when logged in
+  - Shows login/signup buttons when logged out
+
+#### Layout
+
+```
+┌─────────────────────────────────────┐
+│  Automata              [Auth Status] │ ← Header
+├─────────────────────────────────────┤
+│                                     │
+│    개인화된 리서치 뉴스레터               │ ← Title
+│    관심 있는 주제를 입력하면...          │ ← Description
+│                                     │
+│    [Topic Input Field         0/100] │ ← TopicInput
+│    [리서치 시작하기 Button]             │
+│                                     │
+│    예시 주제를 클릭해보세요               │ ← ExampleTopics
+│    [AI 에이전트] [LLM 프롬프팅] [RAG]    │
+│                                     │
+├─────────────────────────────────────┤
+│  © 2026 Automata. AI-powered...    │ ← Footer
+└─────────────────────────────────────┘
+```
+
+#### Validation
+
+Topic validation (`lib/validation/topic.ts`):
+- Minimum 5 characters
+- Maximum 100 characters
+- Korean profanity filter using `badwords-ko`
+- Korean error messages
+
+**TODO (Future Issues):**
+- Topic submission logic (currently just shows success toast)
+- Generate follow-up questions based on topic
+- Route to question page after submission
+
+### Testing
+
+**Status:** ✅ Comprehensive test coverage (171 tests)
+
+Test organization:
+```
+__tests__/
+├── lib/
+│   ├── env.test.ts                 # 14 tests - Environment validation
+│   ├── validation/auth.test.ts     # 48 tests - Auth schemas
+│   ├── actions/auth.test.ts        # 22 tests - Server actions
+│   └── supabase/
+│       ├── client.test.ts          # 8 tests - Browser client
+│       └── server.test.ts          # 16 tests - Server client
+└── components/auth/
+    ├── login-form.test.tsx         # 35 tests - Login form
+    └── signup-form.test.tsx        # 28 tests - Signup form
+```
+
+**Test Coverage:**
+- Validation schemas: 100%
+- Server actions: 100% (93.75% branches)
+- Auth components: 100%
+- Overall: 94.73%
+
+**Testing Patterns:**
+- Vitest as test framework
+- @testing-library/react for component testing
+- @testing-library/user-event for user interactions
+- Mock Supabase clients
+- Korean text verification in all UI tests
+
+**Run tests:**
+```bash
+npm test                    # Run all tests
+npm test -- __tests__/lib/  # Run specific test directory
+npm run test:coverage       # Generate coverage report
+```
+
 ## CI/CD
 
 ### GitHub Actions Workflows
@@ -446,6 +686,32 @@ The web application uses npm (package-lock.json committed):
 - `npm install` - Install dependencies
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
+
+### Key Web Dependencies
+
+**Authentication & Forms:**
+- `@supabase/ssr@^0.8.0` - Supabase SSR integration
+- `@supabase/supabase-js@^2.91.0` - Supabase client
+- `react-hook-form@^7.54.2` - Form state management
+- `@hookform/resolvers@^4.0.1` - Zod integration for forms
+
+**Validation:**
+- `zod@^4.3.5` - Schema validation
+- `badwords-ko` - Korean profanity filtering
+
+**UI Utilities:**
+- `clsx@^2.1.1` - Conditional className construction
+- `tailwind-merge@^3.0.2` - Merge Tailwind classes without conflicts
+- `react-hot-toast@^2.6.0` - Toast notifications
+
+**Email:**
+- `resend@^6.8.0` - Email service integration
+
+**Testing:**
+- `vitest@^4.0.17` - Test framework
+- `@testing-library/react@^16.1.0` - Component testing
+- `@testing-library/user-event@^14.6.1` - User interaction testing
+- `happy-dom@^16.3.2` - DOM simulation for tests
 
 ## Model Configuration
 
