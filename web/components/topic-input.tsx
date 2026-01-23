@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { validateTopic } from '@/lib/validation/topic';
+import { createTopic } from '@/lib/actions/topic';
 
 interface TopicInputProps {
   value: string;
@@ -10,7 +12,8 @@ interface TopicInputProps {
 }
 
 export function TopicInput({ value, onChange }: TopicInputProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,20 +27,25 @@ export function TopicInput({ value, onChange }: TopicInputProps) {
       return;
     }
 
-    setIsSubmitting(true);
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append('topic', value);
 
-    try {
-      // TODO: Implement actual submission logic in future issue
-      // For now, just show success message
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success('주제가 성공적으로 제출되었습니다!');
-      console.log('Topic submitted:', validation.data);
-    } catch (error) {
-      toast.error('제출 중 오류가 발생했습니다.');
-      console.error('Submission error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+        const result = await createTopic(formData);
+
+        if (!result.success) {
+          toast.error(result.message);
+          return;
+        }
+
+        // Navigate to questions page
+        router.push(`/questions/${result.topicId}`);
+      } catch (error) {
+        toast.error('제출 중 오류가 발생했습니다.');
+        console.error('Submission error:', error);
+      }
+    });
   };
 
   const charCount = value.length;
@@ -55,7 +63,7 @@ export function TopicInput({ value, onChange }: TopicInputProps) {
               onChange={(e) => onChange(e.target.value)}
               placeholder="어떤 주제로 리서치해 드릴까요?"
               className="w-full rounded-full border border-solid border-zinc-200 px-6 py-4 text-base transition-colors outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-600 dark:focus:border-zinc-600"
-              disabled={isSubmitting}
+              disabled={isPending}
               maxLength={maxChars}
             />
           </div>
@@ -74,10 +82,10 @@ export function TopicInput({ value, onChange }: TopicInputProps) {
 
         <button
           type="submit"
-          disabled={isSubmitting || value.length === 0}
+          disabled={isPending || value.length === 0}
           className="bg-foreground text-background flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
         >
-          {isSubmitting ? '제출 중...' : '리서치 시작하기'}
+          {isPending ? '제출 중...' : '리서치 시작하기'}
         </button>
       </div>
     </form>
