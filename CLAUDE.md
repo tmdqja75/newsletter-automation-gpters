@@ -75,8 +75,8 @@ npm run format:check
 ### API Backend (FastAPI)
 
 ```bash
-# Install FastAPI dependencies
-uv pip install -r api/requirements.txt
+# Install all dependencies (including FastAPI)
+uv sync
 
 # Run development server (http://localhost:8000)
 cd api
