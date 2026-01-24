@@ -18,6 +18,15 @@ const clientEnvSchema = z.object({
     message: 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required',
   }),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
+
+  // API URL (FastAPI backend)
+  NEXT_PUBLIC_API_URL: z
+    .string()
+    .url({
+      message: 'NEXT_PUBLIC_API_URL must be a valid URL',
+    })
+    .optional()
+    .default('http://localhost:8000'),
 });
 
 /**
@@ -70,6 +79,7 @@ function validateEnv() {
         NEXT_PUBLIC_SUPABASE_ANON_KEY:
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
         RESEND_API_KEY: process.env.RESEND_API_KEY,
         API_SECRET_KEY: process.env.API_SECRET_KEY,
@@ -83,6 +93,7 @@ function validateEnv() {
         NEXT_PUBLIC_SUPABASE_ANON_KEY:
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
       });
       // Return with server vars as undefined (they shouldn't be accessed on client anyway)
       return parsed as z.infer<typeof envSchema>;
