@@ -6,6 +6,9 @@ import { QuestionCard } from '@/components/question-card';
 import { Button } from '@/components/ui/button';
 import { getQuestionsByTopicId, saveAnswers } from '@/lib/actions/question';
 import { getTopicById } from '@/lib/actions/topic';
+import { generateNewsletter } from '@/lib/actions/newsletter';
+import { env } from '@/lib/env';
+import { createClient } from '@/lib/supabase/client';
 import type { Question, Answer } from '@/lib/validation/question';
 import { validateAnswerForQuestion } from '@/lib/validation/question';
 import toast from 'react-hot-toast';
@@ -29,6 +32,9 @@ export default function QuestionsPage() {
   const [questionStates, setQuestionStates] = useState<QuestionState[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [generating, setGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationMessage, setGenerationMessage] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -168,9 +174,83 @@ export default function QuestionsPage() {
         }
 
         toast.success('답변이 저장되었습니다! 리서치를 시작합니다.');
-        // TODO: Redirect to research/newsletter generation page
-        // For now, redirect to home
-        router.push('/');
+
+        // Get current user
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          toast.error('로그인이 필요합니다.');
+          return;
+        }
+
+        // Start newsletter generation with SSE streaming
+        setGenerating(true);
+        setGenerationProgress(0);
+        setGenerationMessage('리서치를 준비하는 중...');
+
+        // Use fetch for SSE streaming
+        const apiUrl = env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+        try {
+          const response = await fetch(
+            `${apiUrl}/api/newsletter/generate/stream`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                user_id: user.id,
+                topic_id: topicId,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to start generation');
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = JSON.parse(line.slice(6));
+                  setGenerationProgress(data.progress);
+                  setGenerationMessage(data.message);
+
+                  if (data.step === 'complete' && data.details?.newsletter_id) {
+                    // Generation complete, redirect to newsletter view
+                    toast.success('뉴스레터가 생성되었습니다!');
+                    // TODO: Create newsletter view page
+                    // For now, redirect to home
+                    router.push('/');
+                    return;
+                  } else if (data.step === 'error') {
+                    toast.error(data.message);
+                    setGenerating(false);
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error generating newsletter:', error);
+          toast.error('뉴스레터 생성 중 오류가 발생했습니다.');
+          setGenerating(false);
+        }
       } catch (error) {
         console.error('Error saving answers:', error);
         toast.error('답변 저장에 실패했습니다.');
@@ -191,6 +271,43 @@ export default function QuestionsPage() {
         <div className="text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
           <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generating) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="max-w-md w-full text-center px-6">
+          <div className="mb-6">
+            <div className="mb-4 h-12 w-12 mx-auto animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              리서치 중입니다...
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              {generationMessage}
+            </p>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mb-4">
+            <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {generationProgress}%
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+              <div
+                className="h-full bg-blue-600 transition-all duration-500"
+                style={{ width: `${generationProgress}%` }}
+              />
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            AI가 최신 자료를 수집하고 분석하고 있습니다.
+            <br />
+            잠시만 기다려주세요.
+          </p>
         </div>
       </div>
     );
