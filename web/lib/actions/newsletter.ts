@@ -130,15 +130,12 @@ export async function getNewsletter(newsletterId: string) {
   try {
     const apiUrl = env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-    const response = await fetch(
-      `${apiUrl}/api/newsletter/${newsletterId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await fetch(`${apiUrl}/api/newsletter/${newsletterId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!response.ok) {
       const error = await response.json();

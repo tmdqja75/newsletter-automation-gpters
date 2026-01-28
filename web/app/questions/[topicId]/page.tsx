@@ -6,7 +6,6 @@ import { QuestionCard } from '@/components/question-card';
 import { Button } from '@/components/ui/button';
 import { getQuestionsByTopicId, saveAnswers } from '@/lib/actions/question';
 import { getTopicById } from '@/lib/actions/topic';
-import { generateNewsletter } from '@/lib/actions/newsletter';
 import { env } from '@/lib/env';
 import { createClient } from '@/lib/supabase/client';
 import type { Question, Answer } from '@/lib/validation/question';
@@ -279,10 +278,10 @@ export default function QuestionsPage() {
   if (generating) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="max-w-md w-full text-center px-6">
+        <div className="w-full max-w-md px-6 text-center">
           <div className="mb-6">
-            <div className="mb-4 h-12 w-12 mx-auto animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+            <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
               리서치 중입니다...
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
