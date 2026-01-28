@@ -46,6 +46,11 @@ export function AuthStatus() {
   if (user) {
     return (
       <div className="flex items-center gap-4">
+        <Link href="/dashboard">
+          <Button variant="ghost" size="sm">
+            대시보드
+          </Button>
+        </Link>
         <span className="text-sm text-gray-700 dark:text-gray-300">
           {user.email}
         </span>
