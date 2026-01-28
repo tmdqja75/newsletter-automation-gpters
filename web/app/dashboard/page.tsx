@@ -51,7 +51,7 @@ export default function DashboardPage() {
           new Map(
             result.newsletters.map((n: any) => [
               n.user_topics.id,
-              { id: n.user_topics.id, topic: n.user_topics.topic },
+              { id: n.user_topics.id, topic: n.user_topics.topic_text },
             ])
           ).values()
         );

@@ -69,11 +69,11 @@ export default async function NewsletterPage({ params }: PageProps) {
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                주제: {newsletter.user_topics.topic}
+                주제: {newsletter.user_topics.topic_text}
               </h2>
-              {newsletter.user_topics.description && (
+              {newsletter.user_topics.topic_description && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {newsletter.user_topics.description}
+                  {newsletter.user_topics.topic_description}
                 </p>
               )}
             </div>

@@ -16,7 +16,7 @@ interface NewsletterCardProps {
     created_at: string;
     user_topics: {
       id: string;
-      topic: string;
+      topic_text: string;
     };
     newsletter_requests: {
       status: string;
@@ -101,7 +101,7 @@ export function NewsletterCard({
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow">
       {/* Thumbnail */}
       <div
-        className={`h-32 bg-gradient-to-br ${getGradient(newsletter.user_topics.topic)} flex items-center justify-center`}
+        className={`h-32 bg-gradient-to-br ${getGradient(newsletter.user_topics.topic_text)} flex items-center justify-center`}
       >
         <div className="text-white text-center px-4">
           <h3 className="text-lg font-bold line-clamp-2">
@@ -132,7 +132,7 @@ export function NewsletterCard({
 
         {/* Topic */}
         <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-          주제: {newsletter.user_topics.topic}
+          주제: {newsletter.user_topics.topic_text}
         </p>
 
         {/* Body Preview */}

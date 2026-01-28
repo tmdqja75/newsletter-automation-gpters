@@ -206,7 +206,7 @@ export async function getUserNewsletters(options: GetUserNewslettersOptions = {}
     .select(
       `
       *,
-      user_topics!inner(id, topic, description),
+      user_topics!inner(id, topic_text, topic_description),
       newsletter_requests!inner(status)
     `,
       { count: 'exact' }
@@ -220,7 +220,7 @@ export async function getUserNewsletters(options: GetUserNewslettersOptions = {}
 
   if (search) {
     query = query.or(
-      `content->title.ilike.%${search}%,user_topics.topic.ilike.%${search}%`
+      `title.ilike.%${search}%,user_topics.topic_text.ilike.%${search}%`
     );
   }
 
@@ -323,7 +323,7 @@ export async function getNewsletterForPublicView(newsletterId: string) {
     .select(
       `
       *,
-      user_topics!inner(topic, description)
+      user_topics!inner(topic_text, topic_description)
     `
     )
     .eq('id', newsletterId)
