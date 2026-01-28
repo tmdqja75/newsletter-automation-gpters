@@ -15,7 +15,8 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    // eslint-disable-next-line prefer-const
+    let intervalId: NodeJS.Timeout;
 
     const checkStatus = async () => {
       const result = await getNewsletterStatus(requestId);
@@ -37,13 +38,13 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
           setTimeout(() => {
             router.push(`/newsletter/${result.newsletterId}`);
           }, 1000);
-          clearInterval(interval);
+          clearInterval(intervalId);
         } else if (result.status === 'failed') {
           setMessage(
             `생성 실패: ${result.errorMessage || '알 수 없는 오류가 발생했습니다.'}`
           );
           setProgress(0);
-          clearInterval(interval);
+          clearInterval(intervalId);
         }
       }
     };
@@ -52,9 +53,9 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
     checkStatus();
 
     // Poll every 3 seconds
-    interval = setInterval(checkStatus, 3000);
+    intervalId = setInterval(checkStatus, 3000);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalId);
   }, [requestId, router]);
 
   return (

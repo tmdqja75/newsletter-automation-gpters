@@ -10,10 +10,7 @@ export const structuredFeedbackSchema = z.object({
 // Main feedback schema
 export const feedbackSchema = z.object({
   newsletter_id: z.string().uuid('올바른 뉴스레터 ID가 아닙니다'),
-  thumbs_up: z.boolean({
-    required_error: '만족도를 선택해주세요',
-    invalid_type_error: '만족도는 참 또는 거짓이어야 합니다',
-  }),
+  thumbs_up: z.boolean(),
   structured_feedback: structuredFeedbackSchema.optional(),
   comment: z
     .string()

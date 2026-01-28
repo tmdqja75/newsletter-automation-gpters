@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getUserNewsletters } from '@/lib/actions/newsletter';
 import { NewsletterCard } from '@/components/newsletter/newsletter-card';
@@ -11,7 +10,6 @@ import { downloadAsMarkdown } from '@/lib/utils/download';
 import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [newsletters, setNewsletters] = useState<any[]>([]);
   const [topics, setTopics] = useState<Array<{ id: string; topic: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -76,14 +74,14 @@ export default function DashboardPage() {
   // Initial load
   useEffect(() => {
     loadNewsletters(0, false);
-  }, [search, selectedTopic, sortBy]);
+  }, [search, selectedTopic, sortBy, loadNewsletters]);
 
   // Load more when scrolling
   useEffect(() => {
     if (inView && hasMore && !loadingMore && !loading) {
       loadNewsletters(newsletters.length, true);
     }
-  }, [inView, hasMore, loadingMore, loading, newsletters.length]);
+  }, [inView, hasMore, loadingMore, loading, newsletters.length, loadNewsletters]);
 
   const handleDelete = () => {
     // Reload newsletters after delete

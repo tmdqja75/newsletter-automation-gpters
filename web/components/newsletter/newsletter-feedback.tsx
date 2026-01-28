@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { submitFeedback, getFeedback } from '@/lib/actions/feedback';
+import { submitFeedback } from '@/lib/actions/feedback';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 
