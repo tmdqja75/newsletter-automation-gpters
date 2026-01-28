@@ -62,50 +62,15 @@ class ProgressUpdate(BaseModel):
 # =============================================================================
 
 
-class CoreIssue(BaseModel):
-    """Single core issue in the newsletter."""
-
-    title: str
-    summary: str
-    links: List[Dict[str, str]] = Field(
-        default_factory=list, description="List of {url, title} dicts"
-    )
-
-
-class DeepDive(BaseModel):
-    """Deep dive section."""
-
-    title: str
-    content: str
-    additional_readings: List[Dict[str, str]] = Field(
-        default_factory=list, description="List of {url, title, description} dicts"
-    )
-
-
-class Source(BaseModel):
-    """Source link with metadata."""
-
-    url: str
-    title: str
-    domain: str
-    accessed_at: str  # ISO format timestamp
-
-
 class NewsletterContent(BaseModel):
-    """Newsletter content that will be saved to newsletters table."""
+    """Simplified newsletter content with markdown body."""
 
-    title: str = Field(..., description="Newsletter title in Korean")
-    tldr: str = Field(..., description="TL;DR summary (3-6 lines in Korean)")
-    core_issues: List[CoreIssue] = Field(
-        ..., min_items=3, max_items=5, description="3-5 core issues"
+    title: str = Field(..., description="Newsletter title")
+    body: str = Field(..., description="Complete newsletter content in markdown")
+    word_count: Optional[int] = Field(None, description="Word count")
+    estimated_reading_time: Optional[int] = Field(
+        None, description="Estimated reading time in minutes"
     )
-    deep_dive: DeepDive = Field(..., description="Deep dive section")
-    next_questions: List[str] = Field(
-        default_factory=list, description="Suggested next research questions"
-    )
-    sources: List[Source] = Field(..., description="All source links with metadata")
-    word_count: Optional[int] = None
-    estimated_reading_time: Optional[int] = None  # in minutes
 
 
 # =============================================================================
