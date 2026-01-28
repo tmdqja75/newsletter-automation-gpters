@@ -5,7 +5,7 @@ import os
 from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import datetime
 from .supabase_client import SupabaseClient, get_supabase_client
-from .models import NewsletterContext, UserAnswer, NewsletterContent, CoreIssue, DeepDive, Source
+from .models import NewsletterContext, UserAnswer, NewsletterContent
 
 
 # =============================================================================
@@ -427,21 +427,7 @@ class TestSaveNewsletter:
 
         content = NewsletterContent(
             title="AI 뉴스레터",
-            tldr="요약 내용",
-            core_issues=[
-                CoreIssue(title=f"Issue {i}", summary=f"Summary {i}")
-                for i in range(3)
-            ],
-            deep_dive=DeepDive(title="Deep Dive", content="Long content"),
-            next_questions=["Question 1", "Question 2"],
-            sources=[
-                Source(
-                    url="https://example.com",
-                    title="Example",
-                    domain="example.com",
-                    accessed_at="2026-01-24T10:00:00Z",
-                )
-            ],
+            body="# AI 뉴스레터\n\n이것은 테스트 뉴스레터입니다.",
             word_count=1500,
             estimated_reading_time=7,
         )
@@ -462,11 +448,7 @@ class TestSaveNewsletter:
         assert insert_call["user_id"] == "user-789"
         assert insert_call["topic_id"] == "topic-012"
         assert insert_call["title"] == "AI 뉴스레터"
-        assert insert_call["tldr"] == "요약 내용"
-        assert len(insert_call["core_issues"]) == 3
-        assert insert_call["deep_dive"]["title"] == "Deep Dive"
-        assert len(insert_call["next_questions"]) == 2
-        assert len(insert_call["sources"]) == 1
+        assert insert_call["body"] == "# AI 뉴스레터\n\n이것은 테스트 뉴스레터입니다."
         assert insert_call["word_count"] == 1500
         assert insert_call["estimated_reading_time"] == 7
         assert insert_call["is_published"] is False
@@ -484,20 +466,7 @@ class TestSaveNewsletter:
 
         content = NewsletterContent(
             title="AI 뉴스레터",
-            tldr="요약",
-            core_issues=[
-                CoreIssue(title=f"Issue {i}", summary=f"Summary {i}")
-                for i in range(3)
-            ],
-            deep_dive=DeepDive(title="Deep", content="Content"),
-            sources=[
-                Source(
-                    url="https://example.com",
-                    title="Example",
-                    domain="example.com",
-                    accessed_at="2026-01-24T10:00:00Z",
-                )
-            ],
+            body="# AI 뉴스레터\n\n테스트 내용",
         )
 
         with pytest.raises(ValueError) as exc_info:
@@ -702,20 +671,7 @@ class TestSupabaseClientIntegration:
         # Save newsletter
         content = NewsletterContent(
             title="AI 뉴스레터",
-            tldr="요약",
-            core_issues=[
-                CoreIssue(title=f"Issue {i}", summary=f"Summary {i}")
-                for i in range(3)
-            ],
-            deep_dive=DeepDive(title="Deep", content="Content"),
-            sources=[
-                Source(
-                    url="https://example.com",
-                    title="Example",
-                    domain="example.com",
-                    accessed_at="2026-01-24T10:00:00Z",
-                )
-            ],
+            body="# AI 뉴스레터\n\n테스트 내용",
         )
 
         newsletter_id = await client.save_newsletter(
