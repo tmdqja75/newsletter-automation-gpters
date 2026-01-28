@@ -202,18 +202,23 @@ export async function getUserNewsletters(
     };
   }
 
-  // Build query
+  // Build query - start from newsletter_requests to include processing status
   let query = supabase
-    .from('newsletters')
+    .from('newsletter_requests')
     .select(
       `
-      *,
+      id,
+      status,
+      created_at,
+      requested_at,
+      topic_id,
       user_topics!inner(id, topic_text, topic_description),
-      newsletter_requests!inner(status)
+      newsletters(id, title, body, created_at)
     `,
       { count: 'exact' }
     )
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .in('status', ['completed', 'processing']); // Only show completed and processing
 
   // Apply filters
   if (topicId) {
@@ -222,7 +227,7 @@ export async function getUserNewsletters(
 
   if (search) {
     query = query.or(
-      `title.ilike.%${search}%,user_topics.topic_text.ilike.%${search}%`
+      `newsletters.title.ilike.%${search}%,user_topics.topic_text.ilike.%${search}%`
     );
   }
 
@@ -234,7 +239,7 @@ export async function getUserNewsletters(
   // Apply pagination
   query = query.range(offset, offset + limit - 1);
 
-  const { data: newsletters, error: newslettersError, count } = await query;
+  const { data: requests, error: newslettersError, count } = await query;
 
   if (newslettersError) {
     console.error('Error fetching newsletters:', newslettersError);
@@ -246,14 +251,28 @@ export async function getUserNewsletters(
     };
   }
 
-  // Transform flat structure to match frontend expectations
-  const transformedNewsletters = (newsletters || []).map((n: any) => ({
-    ...n,
-    content: {
-      title: n.title,
-      body: n.body,
-    },
-  }));
+  // Transform to match frontend expectations
+  const transformedNewsletters = (requests || []).map((req: any) => {
+    const newsletter = Array.isArray(req.newsletters)
+      ? req.newsletters[0]
+      : req.newsletters;
+
+    return {
+      id: newsletter?.id || req.id, // Use newsletter ID if available, otherwise request ID
+      request_id: req.id,
+      user_id: user.id,
+      topic_id: req.topic_id,
+      status: req.status,
+      title: newsletter?.title || '생성 중...',
+      body: newsletter?.body || '',
+      created_at: newsletter?.created_at || req.created_at,
+      user_topics: req.user_topics,
+      content: {
+        title: newsletter?.title || '생성 중...',
+        body: newsletter?.body || '',
+      },
+    };
+  });
 
   return {
     success: true,
@@ -263,12 +282,12 @@ export async function getUserNewsletters(
 }
 
 /**
- * Delete a newsletter.
+ * Delete a newsletter or newsletter request.
  *
- * @param newsletterId - Newsletter UUID
+ * @param id - Newsletter ID or Request ID
  * @returns Result with success status
  */
-export async function deleteNewsletter(newsletterId: string) {
+export async function deleteNewsletter(id: string) {
   const supabase = await createClient();
 
   // Check authentication
@@ -284,29 +303,58 @@ export async function deleteNewsletter(newsletterId: string) {
     };
   }
 
-  // Verify newsletter belongs to user
-  const { data: newsletter, error: verifyError } = await supabase
+  // First try to find as a newsletter
+  const { data: newsletter } = await supabase
     .from('newsletters')
-    .select('id, user_id')
-    .eq('id', newsletterId)
+    .select('id, user_id, request_id')
+    .eq('id', id)
     .eq('user_id', user.id)
     .single();
 
-  if (verifyError || !newsletter) {
+  if (newsletter) {
+    // Delete from newsletter_requests (cascades to newsletters)
+    const { error: deleteError } = await supabase
+      .from('newsletter_requests')
+      .delete()
+      .eq('id', newsletter.request_id);
+
+    if (deleteError) {
+      console.error('Error deleting newsletter:', deleteError);
+      return {
+        success: false,
+        message: '뉴스레터 삭제에 실패했습니다. 다시 시도해주세요.',
+      };
+    }
+
+    return {
+      success: true,
+      message: '뉴스레터가 삭제되었습니다.',
+    };
+  }
+
+  // If not found as newsletter, try as a request (processing status)
+  const { data: request, error: requestError } = await supabase
+    .from('newsletter_requests')
+    .select('id, user_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (requestError || !request) {
     return {
       success: false,
       message: '뉴스레터를 찾을 수 없습니다.',
     };
   }
 
-  // Delete the newsletter
+  // Delete the request
   const { error: deleteError } = await supabase
-    .from('newsletters')
+    .from('newsletter_requests')
     .delete()
-    .eq('id', newsletterId);
+    .eq('id', id);
 
   if (deleteError) {
-    console.error('Error deleting newsletter:', deleteError);
+    console.error('Error deleting newsletter request:', deleteError);
     return {
       success: false,
       message: '뉴스레터 삭제에 실패했습니다. 다시 시도해주세요.',

@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 interface NewsletterCardProps {
   newsletter: {
     id: string;
+    request_id?: string;
+    status: string; // 'pending' | 'processing' | 'completed' | 'failed'
     content: {
       title: string;
       body: string;
@@ -17,9 +19,6 @@ interface NewsletterCardProps {
     user_topics: {
       id: string;
       topic_text: string;
-    };
-    newsletter_requests: {
-      status: string;
     };
   };
   onDelete?: () => void;
@@ -34,7 +33,7 @@ export function NewsletterCard({
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const status = newsletter.newsletter_requests.status;
+  const status = newsletter.status;
   const isCompleted = status === 'completed';
   const isProcessing = status === 'processing';
   const isFailed = status === 'failed';
