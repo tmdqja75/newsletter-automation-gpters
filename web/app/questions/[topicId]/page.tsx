@@ -231,10 +231,8 @@ export default function QuestionsPage() {
 
                   if (data.step === 'complete' && data.details?.newsletter_id) {
                     // Generation complete, redirect to newsletter view
-                    toast.success('뉴스레터가 생성되었습니다!');
-                    // TODO: Create newsletter view page
-                    // For now, redirect to home
-                    router.push('/');
+                    toast.success('뉴스레터가 생성되었습니다! 확인하세요.');
+                    router.push(`/newsletter/${data.details.newsletter_id}`);
                     return;
                   } else if (data.step === 'error') {
                     toast.error(data.message);
