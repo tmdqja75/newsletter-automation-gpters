@@ -11,7 +11,7 @@ interface NewsletterCardProps {
     id: string;
     content: {
       title: string;
-      tldr: string;
+      body: string;
     };
     created_at: string;
     user_topics: {
@@ -135,10 +135,10 @@ export function NewsletterCard({
           주제: {newsletter.user_topics.topic}
         </p>
 
-        {/* TL;DR Preview */}
+        {/* Body Preview */}
         {isCompleted && (
           <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-4">
-            {newsletter.content.tldr}
+            {newsletter.content.body.substring(0, 150)}...
           </p>
         )}
 
