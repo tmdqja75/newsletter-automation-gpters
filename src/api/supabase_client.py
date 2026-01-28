@@ -8,9 +8,6 @@ from .models import (
     NewsletterContext,
     UserAnswer,
     NewsletterContent,
-    CoreIssue,
-    DeepDive,
-    Source,
 )
 
 
@@ -203,21 +200,12 @@ class SupabaseClient:
         Returns:
             newsletter_id (UUID)
         """
-        # Convert Pydantic models to JSONB-compatible dicts
-        core_issues_json = [issue.model_dump() for issue in content.core_issues]
-        deep_dive_json = content.deep_dive.model_dump()
-        sources_json = [source.model_dump() for source in content.sources]
-
         newsletter_data = {
             "request_id": request_id,
             "user_id": user_id,
             "topic_id": topic_id,
             "title": content.title,
-            "tldr": content.tldr,
-            "core_issues": core_issues_json,
-            "deep_dive": deep_dive_json,
-            "next_questions": content.next_questions,
-            "sources": sources_json,
+            "body": content.body,
             "word_count": content.word_count,
             "estimated_reading_time": content.estimated_reading_time,
             "is_published": False,  # Not published yet

@@ -118,112 +118,58 @@ def sample_preferences_data():
 
 
 @pytest.fixture
-def sample_core_issues_data():
-    """Sample core issues for newsletter content."""
-    return [
-        {
-            "title": "Claude Opus 4.5 출시",
-            "summary": "Anthropic이 최신 모델 Claude Opus 4.5를 공개했습니다.",
-            "links": [
-                {
-                    "url": "https://anthropic.com/blog/claude-opus-4-5",
-                    "title": "Introducing Claude Opus 4.5",
-                }
-            ],
-        },
-        {
-            "title": "AI 에이전트 하니스 개발",
-            "summary": "새로운 에이전트 프레임워크가 오픈소스로 공개되었습니다.",
-            "links": [
-                {
-                    "url": "https://github.com/example/agent-harness",
-                    "title": "Agent Harness on GitHub",
-                }
-            ],
-        },
-        {
-            "title": "LangGraph 2.0 베타 릴리즈",
-            "summary": "LangChain의 그래프 기반 워크플로우 엔진이 업데이트되었습니다.",
-            "links": [
-                {
-                    "url": "https://blog.langchain.com/langgraph-2-0",
-                    "title": "LangGraph 2.0 Announcement",
-                }
-            ],
-        },
-    ]
+def sample_newsletter_content():
+    """Sample simplified newsletter content."""
+    from .models import NewsletterContent
 
+    body = """# AI 뉴스레터 - 2026년 1월 4주차
 
-@pytest.fixture
-def sample_deep_dive_data():
-    """Sample deep dive section data."""
-    return {
-        "title": "AI 에이전트 아키텍처의 진화",
-        "content": """
-        AI 에이전트 시스템은 단순한 프롬프트 기반 모델에서 복잡한 다중 에이전트 시스템으로 발전하고 있습니다.
+## 이번 주 주요 소식
 
-        주요 변화:
-        1. 모듈화된 에이전트 구조
-        2. 도구 사용(Tool Use) 능력 향상
-        3. 메모리 및 컨텍스트 관리
+이번 주는 AI 분야에서 여러 중요한 발표들이 있었습니다.
 
-        이러한 발전은 더욱 강력하고 신뢰할 수 있는 AI 시스템 구축을 가능하게 합니다.
-        """,
-        "additional_readings": [
-            {
-                "url": "https://arxiv.org/abs/2024.12345",
-                "title": "Agent Architecture Survey 2026",
-                "description": "최신 에이전트 아키텍처 연구 서베이",
-            }
-        ],
-    }
+### Claude Opus 4.5 출시
 
+Anthropic이 최신 모델 Claude Opus 4.5를 공개했습니다. 이번 업데이트로 AI 성능이 대폭 향상되었습니다.
 
-@pytest.fixture
-def sample_sources_data():
-    """Sample sources data."""
-    return [
-        {
-            "url": "https://anthropic.com/blog/claude-opus-4-5",
-            "title": "Introducing Claude Opus 4.5",
-            "domain": "anthropic.com",
-            "accessed_at": "2026-01-24T10:00:00Z",
-        },
-        {
-            "url": "https://github.com/example/agent-harness",
-            "title": "Agent Harness Repository",
-            "domain": "github.com",
-            "accessed_at": "2026-01-24T10:05:00Z",
-        },
-        {
-            "url": "https://blog.langchain.com/langgraph-2-0",
-            "title": "LangGraph 2.0 Release",
-            "domain": "blog.langchain.com",
-            "accessed_at": "2026-01-24T10:10:00Z",
-        },
-    ]
+- [Introducing Claude Opus 4.5](https://anthropic.com/blog/claude-opus-4-5)
 
+### AI 에이전트 하니스 개발
 
-@pytest.fixture
-def sample_newsletter_content(
-    sample_core_issues_data, sample_deep_dive_data, sample_sources_data
-):
-    """Sample complete newsletter content."""
-    from .models import NewsletterContent, CoreIssue, DeepDive, Source
+새로운 에이전트 프레임워크가 오픈소스로 공개되었습니다.
+
+- [Agent Harness on GitHub](https://github.com/example/agent-harness)
+
+### LangGraph 2.0 베타 릴리즈
+
+LangChain의 그래프 기반 워크플로우 엔진이 업데이트되었습니다.
+
+- [LangGraph 2.0 Announcement](https://blog.langchain.com/langgraph-2-0)
+
+## Deep Dive: AI 에이전트 아키텍처의 진화
+
+AI 에이전트 시스템은 단순한 프롬프트 기반 모델에서 복잡한 다중 에이전트 시스템으로 발전하고 있습니다.
+
+주요 변화:
+1. 모듈화된 에이전트 구조
+2. 도구 사용(Tool Use) 능력 향상
+3. 메모리 및 컨텍스트 관리
+
+이러한 발전은 더욱 강력하고 신뢰할 수 있는 AI 시스템 구축을 가능하게 합니다.
+
+### 추가 자료
+
+- [Agent Architecture Survey 2026](https://arxiv.org/abs/2024.12345)
+
+## 다음 탐구 질문
+
+- AI 에이전트의 메모리 시스템은 어떻게 설계하나요?
+- 다중 에이전트 협업 패턴은 무엇이 있나요?
+"""
 
     return NewsletterContent(
         title="AI 뉴스레터 - 2026년 1월 4주차",
-        tldr="""이번 주 주요 소식:
-        - Claude Opus 4.5 출시로 AI 성능 대폭 향상
-        - 새로운 에이전트 프레임워크 오픈소스 공개
-        - LangGraph 2.0 베타 버전 릴리즈""",
-        core_issues=[CoreIssue(**issue) for issue in sample_core_issues_data],
-        deep_dive=DeepDive(**sample_deep_dive_data),
-        next_questions=[
-            "AI 에이전트의 메모리 시스템은 어떻게 설계하나요?",
-            "다중 에이전트 협업 패턴은 무엇이 있나요?",
-        ],
-        sources=[Source(**source) for source in sample_sources_data],
+        body=body,
         word_count=1500,
         estimated_reading_time=7,
     )

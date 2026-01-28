@@ -15,9 +15,6 @@ from .models import (
     NewsletterContext,
     ProgressUpdate,
     NewsletterContent,
-    CoreIssue,
-    DeepDive,
-    Source,
 )
 from .supabase_client import get_supabase_client
 
@@ -102,46 +99,29 @@ class NewsletterGenerator:
    - 사용자의 관심사와 수준에 맞는 자료를 우선적으로 선택하세요
    - 다양한 출처(공식 블로그, 기술 뉴스, HackerNews 등)를 활용하세요
 
-2. **topic-selector 사용**: 수집한 자료에서 3-5개의 핵심 이슈를 선정하세요
-   - 사용자의 관심사에 가장 관련 있는 이슈를 우선 선택하세요
-   - 각 이슈는 구체적이고 명확해야 합니다
+2. **topic-selector 사용**: 수집한 자료에서 핵심 주제들을 선정하세요
+   - 사용자의 관심사에 가장 관련 있는 내용을 우선 선택하세요
+   - 각 주제는 구체적이고 명확해야 합니다
 
-3. **뉴스레터 작성**: 다음 구조로 뉴스레터를 작성하세요
-
-   **제목**: [주제]에 대한 최신 동향 ({datetime.now().strftime('%Y.%m.%d')})
-
-   **TL;DR** (3-6줄):
-   - 핵심 내용을 3-6줄로 요약
-
-   **핵심 이슈** (3-5개):
-   각 이슈마다:
-   - 제목
-   - 요약 (2-3 문단)
-   - 관련 링크 1-3개 (제목과 URL)
-
-   **Deep Dive** (1개):
-   - 가장 중요한 이슈에 대한 심층 분석
-   - 4-5 문단으로 상세히 설명
-   - 추가 읽을거리 2-3개
-
-   **다음 탐구 질문** (3-5개):
-   - 사용자가 다음에 리서치할 수 있는 후속 질문들
-
-   **출처**:
-   - 모든 참고한 링크 목록 (URL, 제목, 도메인)
+3. **뉴스레터 작성**: 완전한 마크다운 문서 형식으로 뉴스레터를 작성하세요
+   - 제목, 본문, 링크 등을 포함한 완전한 문서를 작성하세요
+   - 마크다운 문법을 사용하세요 (제목: #, ##, 링크: [텍스트](URL), 등)
+   - 사용자의 수준과 관심사에 맞게 설명하세요
+   - 코드 예제가 필요하면 코드 블록(```)을 사용하세요
 
 4. **tone-editor 사용**: 작성한 뉴스레터를 검토하고 다음을 확인하세요
    - 한국어 "해요체" 사용
    - 기술 용어는 한글(영어) 병기
    - 사용자 수준에 맞는 설명
-   - 출처 링크가 모두 포함되었는지 확인
+   - 모든 출처 링크가 포함되었는지 확인
 
-5. **최종 결과 반환**: 구조화된 뉴스레터를 JSON 형식으로 반환하세요
+5. **최종 결과 반환**: 완성된 마크다운 뉴스레터를 반환하세요
 
 **중요**:
 - 모든 주장에는 반드시 출처를 명시하세요
 - 링크 없는 단정적 주장을 피하세요
 - 불확실한 내용은 "확인 필요" 또는 "추측" 표시하세요
+- 최종 결과는 바로 사용자에게 보여줄 수 있는 완전한 마크다운 문서여야 합니다
 """
 
         return prompt
@@ -441,86 +421,32 @@ class NewsletterGenerator:
         self, content: str, context: NewsletterContext
     ) -> NewsletterContent:
         """
-        Parse agent response into structured NewsletterContent.
+        Parse agent response into simplified NewsletterContent.
 
-        For MVP, this creates a simple structure from the text.
-        TODO: Implement proper parsing or ask agent to return JSON.
+        Extracts the markdown body and calculates reading metrics.
 
         Args:
-            content: Agent response text
+            content: Agent response text (complete markdown document)
             context: Newsletter context
 
         Returns:
-            Structured NewsletterContent
+            Simplified NewsletterContent with title and body
         """
-        # For now, create a basic structure
-        # In production, you'd parse the markdown or ask the agent to return JSON
-
+        # Extract title from first line if it starts with #, otherwise generate one
+        lines = content.strip().split("\n")
         title = f"{context.topic_text}에 대한 최신 동향 ({datetime.now().strftime('%Y.%m.%d')})"
 
-        # Extract TL;DR (simple heuristic)
-        tldr = "AI 에이전트가 생성한 개인화된 리서치 뉴스레터입니다."
-        if "TL;DR" in content or "요약" in content:
-            # Try to extract summary section
-            lines = content.split("\n")
-            for i, line in enumerate(lines):
-                if "TL;DR" in line or "요약" in line:
-                    # Take next few lines
-                    tldr_lines = []
-                    for j in range(i + 1, min(i + 7, len(lines))):
-                        if lines[j].strip() and not lines[j].startswith("#"):
-                            tldr_lines.append(lines[j].strip())
-                    if tldr_lines:
-                        tldr = "\n".join(tldr_lines[:6])
-                    break
+        if lines and lines[0].startswith("#"):
+            # Remove markdown header syntax
+            title = lines[0].lstrip("#").strip()
 
-        # Create placeholder core issues
-        core_issues = [
-            CoreIssue(
-                title="핵심 이슈 1",
-                summary=content[:500] if len(content) > 500 else content,
-                links=[],
-            ),
-        ]
-
-        # Create placeholder deep dive
-        deep_dive = DeepDive(
-            title="심층 분석",
-            content=content,
-            additional_readings=[],
-        )
-
-        # Extract URLs as sources
-        import re
-        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
-        urls = re.findall(url_pattern, content)
-        sources = []
-        for url in set(urls[:10]):  # Limit to 10 unique sources
-            from urllib.parse import urlparse
-            domain = urlparse(url).netloc
-            sources.append(
-                Source(
-                    url=url,
-                    title=url,  # TODO: Extract title
-                    domain=domain,
-                    accessed_at=datetime.utcnow().isoformat(),
-                )
-            )
-
+        # Calculate word count and reading time
         word_count = len(content.split())
         estimated_reading_time = max(1, word_count // 200)  # 200 words per minute
 
         return NewsletterContent(
             title=title,
-            tldr=tldr,
-            core_issues=core_issues,
-            deep_dive=deep_dive,
-            next_questions=[
-                f"{context.topic_text}의 최신 발전 사항은?",
-                "관련 오픈소스 프로젝트는?",
-                "실무 적용 사례는?",
-            ],
-            sources=sources,
+            body=content,
             word_count=word_count,
             estimated_reading_time=estimated_reading_time,
         )
