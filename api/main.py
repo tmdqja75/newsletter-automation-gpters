@@ -1,6 +1,16 @@
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load environment variables for API runtime
+api_env_path = Path(__file__).parent / ".env"
+root_env_path = Path(__file__).parent.parent / ".env"
+if api_env_path.exists():
+    load_dotenv(api_env_path)
+else:
+    load_dotenv(root_env_path)
+
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
