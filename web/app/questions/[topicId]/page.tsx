@@ -305,6 +305,19 @@ export default function QuestionsPage() {
             <br />
             잠시만 기다려주세요.
           </p>
+
+          <div className="mt-6 flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // Use full navigation so it works even if streaming blocks client routing.
+                window.location.assign('/dashboard');
+              }}
+            >
+              대시보드로 이동
+            </Button>
+          </div>
         </div>
       </div>
     );
