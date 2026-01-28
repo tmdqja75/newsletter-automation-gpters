@@ -11,7 +11,9 @@ import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
   const [newsletters, setNewsletters] = useState<any[]>([]);
-  const [topics, setTopics] = useState<Array<{ id: string; topic: string }>>([]);
+  const [topics, setTopics] = useState<Array<{ id: string; topic: string }>>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -57,9 +59,7 @@ export default function DashboardPage() {
         );
         setTopics((prev) => {
           const merged = [...prev, ...uniqueTopics];
-          return Array.from(
-            new Map(merged.map((t) => [t.id, t])).values()
-          );
+          return Array.from(new Map(merged.map((t) => [t.id, t])).values());
         });
 
         setHasMore(result.newsletters.length === 12);
@@ -81,7 +81,14 @@ export default function DashboardPage() {
     if (inView && hasMore && !loadingMore && !loading) {
       loadNewsletters(newsletters.length, true);
     }
-  }, [inView, hasMore, loadingMore, loading, newsletters.length, loadNewsletters]);
+  }, [
+    inView,
+    hasMore,
+    loadingMore,
+    loading,
+    newsletters.length,
+    loadNewsletters,
+  ]);
 
   const handleDelete = () => {
     // Reload newsletters after delete
@@ -112,9 +119,9 @@ export default function DashboardPage() {
 
   if (loading && newsletters.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
           <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
         </div>
       </div>
@@ -124,8 +131,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-4">
             <Link
               href="/"
@@ -136,7 +143,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-blue-600 hover:underline dark:text-blue-400"
           >
             새 뉴스레터 생성하기 →
           </Link>
@@ -144,10 +151,10 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         {/* Page Title */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
             내 뉴스레터
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -165,8 +172,8 @@ export default function DashboardPage() {
 
         {/* Newsletter Grid */}
         {newsletters.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="max-w-md mx-auto">
+          <div className="rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-gray-700 dark:bg-gray-800">
+            <div className="mx-auto max-w-md">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400"
                 fill="none"
@@ -187,7 +194,7 @@ export default function DashboardPage() {
                 관심 있는 주제로 첫 뉴스레터를 생성해보세요!
               </p>
               <Link href="/">
-                <button className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <button className="mt-6 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700">
                   뉴스레터 생성하기
                 </button>
               </Link>
@@ -195,7 +202,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {newsletters.map((newsletter) => (
                 <NewsletterCard
                   key={newsletter.id}
@@ -211,7 +218,7 @@ export default function DashboardPage() {
               <div ref={ref} className="py-8 text-center">
                 {loadingMore && (
                   <div className="flex items-center justify-center gap-2">
-                    <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
                     <span className="text-gray-600 dark:text-gray-400">
                       더 불러오는 중...
                     </span>

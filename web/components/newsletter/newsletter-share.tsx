@@ -9,10 +9,7 @@ interface NewsletterShareProps {
   title: string;
 }
 
-export function NewsletterShare({
-  newsletterId,
-  title,
-}: NewsletterShareProps) {
+export function NewsletterShare({ newsletterId, title }: NewsletterShareProps) {
   const [copied, setCopied] = useState(false);
 
   const shareUrl = `${window.location.origin}/newsletter/${newsletterId}`;
@@ -56,15 +53,15 @@ export function NewsletterShare({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-      <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
         공유하기
       </h3>
 
       <div className="space-y-4">
         {/* Copy Link */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             링크 복사
           </label>
           <div className="flex gap-2">
@@ -72,7 +69,7 @@ export function NewsletterShare({
               type="text"
               value={shareUrl}
               readOnly
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+              className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
             <Button onClick={handleCopyLink} variant="outline">
               {copied ? '복사됨!' : '복사'}
@@ -82,7 +79,7 @@ export function NewsletterShare({
 
         {/* Social Share */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             소셜 미디어
           </label>
           <div className="flex gap-2">
@@ -92,7 +89,7 @@ export function NewsletterShare({
               className="flex-1"
             >
               <svg
-                className="w-5 h-5 mr-2"
+                className="mr-2 h-5 w-5"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -106,7 +103,7 @@ export function NewsletterShare({
               className="flex-1"
             >
               <svg
-                className="w-5 h-5 mr-2"
+                className="mr-2 h-5 w-5"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -120,7 +117,7 @@ export function NewsletterShare({
               className="flex-1"
             >
               <svg
-                className="w-5 h-5 mr-2"
+                className="mr-2 h-5 w-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

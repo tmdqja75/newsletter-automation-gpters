@@ -46,11 +46,11 @@ export default async function NewsletterPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
           <Link
             href={isOwner ? '/dashboard' : '/'}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-blue-600 hover:underline dark:text-blue-400"
           >
             ← {isOwner ? '대시보드로 돌아가기' : '홈으로 돌아가기'}
           </Link>
@@ -63,12 +63,12 @@ export default async function NewsletterPage({ params }: PageProps) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         {/* Topic Info */}
-        <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+              <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 주제: {newsletter.user_topics.topic_text}
               </h2>
               {newsletter.user_topics.topic_description && (
@@ -88,12 +88,12 @@ export default async function NewsletterPage({ params }: PageProps) {
         </div>
 
         {/* Newsletter Content */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
           <NewsletterContent content={newsletter.content} />
         </div>
 
         {/* Share and Feedback Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Share Component */}
           <NewsletterShare
             newsletterId={newsletterId}
@@ -110,7 +110,7 @@ export default async function NewsletterPage({ params }: PageProps) {
         </div>
 
         {/* Download Section */}
-        <div className="max-w-md mx-auto">
+        <div className="mx-auto max-w-md">
           <NewsletterDownload
             content={newsletter.content}
             title={newsletter.content.title}
@@ -119,11 +119,11 @@ export default async function NewsletterPage({ params }: PageProps) {
 
         {/* Public View Notice */}
         {!isOwner && (
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
+          <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-center dark:border-blue-800 dark:bg-blue-900/20">
             <p className="text-sm text-blue-700 dark:text-blue-300">
               이 뉴스레터는 공개 링크로 공유되었습니다. 자신의 뉴스레터를
               생성하려면{' '}
-              <Link href="/" className="underline font-medium">
+              <Link href="/" className="font-medium underline">
                 여기를 클릭하세요
               </Link>
               .
@@ -133,8 +133,8 @@ export default async function NewsletterPage({ params }: PageProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mt-12">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+      <footer className="mt-12 border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div className="mx-auto max-w-4xl px-4 py-6 text-center text-sm text-gray-500 sm:px-6 dark:text-gray-400">
           <p>© 2026 Automata. AI-powered personalized newsletters.</p>
         </div>
       </footer>

@@ -29,7 +29,7 @@ export function NewsletterDownload({
   return (
     <Button variant="outline" onClick={handleDownload} className="w-full">
       <svg
-        className="w-4 h-4 mr-2"
+        className="mr-2 h-4 w-4"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"

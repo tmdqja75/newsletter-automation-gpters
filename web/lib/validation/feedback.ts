@@ -50,9 +50,11 @@ export type SubmitFeedbackInput = z.infer<typeof submitFeedbackSchema>;
 export type FeedbackResponse = z.infer<typeof feedbackResponseSchema>;
 
 // Helper function to validate feedback
-export function validateFeedback(
-  data: unknown
-): { valid: boolean; data?: SubmitFeedbackInput; error?: string } {
+export function validateFeedback(data: unknown): {
+  valid: boolean;
+  data?: SubmitFeedbackInput;
+  error?: string;
+} {
   try {
     const validated = submitFeedbackSchema.parse(data);
     return { valid: true, data: validated };

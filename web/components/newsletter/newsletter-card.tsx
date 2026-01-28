@@ -40,7 +40,8 @@ export function NewsletterCard({
   const isFailed = status === 'failed';
 
   const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300',
+    pending:
+      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300',
     processing:
       'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300',
     completed:
@@ -98,13 +99,13 @@ export function NewsletterCard({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
       {/* Thumbnail */}
       <div
         className={`h-32 bg-gradient-to-br ${getGradient(newsletter.user_topics.topic_text)} flex items-center justify-center`}
       >
-        <div className="text-white text-center px-4">
-          <h3 className="text-lg font-bold line-clamp-2">
+        <div className="px-4 text-center text-white">
+          <h3 className="line-clamp-2 text-lg font-bold">
             {newsletter.content.title}
           </h3>
         </div>
@@ -113,9 +114,9 @@ export function NewsletterCard({
       {/* Content */}
       <div className="p-4">
         {/* Status Badge */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
               statusColors[status as keyof typeof statusColors] ||
               statusColors.pending
             }`}
@@ -131,13 +132,13 @@ export function NewsletterCard({
         </div>
 
         {/* Topic */}
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+        <p className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
           주제: {newsletter.user_topics.topic_text}
         </p>
 
         {/* Body Preview */}
         {isCompleted && (
-          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-4">
+          <p className="mb-4 line-clamp-2 text-sm text-gray-700 dark:text-gray-300">
             {newsletter.content.body.substring(0, 150)}...
           </p>
         )}
@@ -158,7 +159,7 @@ export function NewsletterCard({
                 title="공유"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -178,7 +179,7 @@ export function NewsletterCard({
                 title="다운로드"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -195,8 +196,8 @@ export function NewsletterCard({
           )}
 
           {isProcessing && (
-            <div className="flex-1 flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex flex-1 items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
               <span className="text-sm">생성 중...</span>
             </div>
           )}
@@ -214,10 +215,10 @@ export function NewsletterCard({
               size="sm"
               onClick={() => setShowDeleteConfirm(true)}
               title="삭제"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
             >
               <svg
-                className="w-4 h-4"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

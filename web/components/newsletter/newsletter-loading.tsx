@@ -59,27 +59,27 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
   }, [requestId, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
         {/* Animated Spinner */}
         <div className="mb-6 flex justify-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="relative h-16 w-16">
+            <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700"></div>
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
           </div>
         </div>
 
         {/* Status Message */}
-        <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+        <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
           {status === 'failed' ? '오류 발생' : '생성 중'}
         </h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{message}</p>
+        <p className="mb-6 text-gray-600 dark:text-gray-400">{message}</p>
 
         {/* Progress Bar */}
         {status !== 'failed' && (
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+          <div className="mb-4 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+              className="h-2 rounded-full bg-blue-600 transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -87,7 +87,7 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
 
         {/* Additional Info */}
         {status === 'processing' && (
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
             <p className="text-sm text-blue-700 dark:text-blue-300">
               AI 에이전트가 최신 정보를 수집하고 분석하고 있습니다. 잠시만
               기다려주세요.
@@ -99,7 +99,7 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
           <div className="mt-6">
             <button
               onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
             >
               대시보드로 돌아가기
             </button>
@@ -109,7 +109,7 @@ export function NewsletterLoading({ requestId }: NewsletterLoadingProps) {
         {/* Expected Sections Preview */}
         {status !== 'failed' && (
           <div className="mt-8 text-left">
-            <h3 className="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+            <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
               생성될 섹션:
             </h3>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">

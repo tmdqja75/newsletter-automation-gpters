@@ -174,7 +174,9 @@ interface GetUserNewslettersOptions {
  * @param options - Query options
  * @returns List of newsletters
  */
-export async function getUserNewsletters(options: GetUserNewslettersOptions = {}) {
+export async function getUserNewsletters(
+  options: GetUserNewslettersOptions = {}
+) {
   const {
     limit = 12,
     offset = 0,
