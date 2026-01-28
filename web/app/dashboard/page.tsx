@@ -73,12 +73,14 @@ export default function DashboardPage() {
 
   // Initial load
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadNewsletters(0, false);
   }, [search, selectedTopic, sortBy, loadNewsletters]);
 
   // Load more when scrolling
   useEffect(() => {
     if (inView && hasMore && !loadingMore && !loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadNewsletters(newsletters.length, true);
     }
   }, [
