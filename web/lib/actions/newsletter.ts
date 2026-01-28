@@ -244,9 +244,18 @@ export async function getUserNewsletters(options: GetUserNewslettersOptions = {}
     };
   }
 
+  // Transform flat structure to match frontend expectations
+  const transformedNewsletters = (newsletters || []).map((n: any) => ({
+    ...n,
+    content: {
+      title: n.title,
+      body: n.body,
+    },
+  }));
+
   return {
     success: true,
-    newsletters: newsletters || [],
+    newsletters: transformedNewsletters,
     total: count || 0,
   };
 }
@@ -336,8 +345,17 @@ export async function getNewsletterForPublicView(newsletterId: string) {
     };
   }
 
+  // Transform flat structure to match frontend expectations
+  const transformedNewsletter = {
+    ...newsletter,
+    content: {
+      title: newsletter.title,
+      body: newsletter.body,
+    },
+  };
+
   return {
     success: true,
-    newsletter,
+    newsletter: transformedNewsletter,
   };
 }
