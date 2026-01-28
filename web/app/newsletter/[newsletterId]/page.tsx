@@ -5,6 +5,7 @@ import { getFeedback } from '@/lib/actions/feedback';
 import { NewsletterContent } from '@/components/newsletter/newsletter-content';
 import { NewsletterShare } from '@/components/newsletter/newsletter-share';
 import { NewsletterFeedback } from '@/components/newsletter/newsletter-feedback';
+import { NewsletterDownload } from '@/components/newsletter/newsletter-download';
 import Link from 'next/link';
 
 interface PageProps {
@@ -92,7 +93,7 @@ export default async function NewsletterPage({ params }: PageProps) {
         </div>
 
         {/* Share and Feedback Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Share Component */}
           <NewsletterShare
             newsletterId={newsletterId}
@@ -106,6 +107,14 @@ export default async function NewsletterPage({ params }: PageProps) {
               existingFeedback={existingFeedback}
             />
           )}
+        </div>
+
+        {/* Download Section */}
+        <div className="max-w-md mx-auto">
+          <NewsletterDownload
+            content={newsletter.content}
+            title={newsletter.content.title}
+          />
         </div>
 
         {/* Public View Notice */}

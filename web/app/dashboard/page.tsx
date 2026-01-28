@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { getUserNewsletters } from '@/lib/actions/newsletter';
 import { NewsletterCard } from '@/components/newsletter/newsletter-card';
 import { NewsletterFilters } from '@/components/newsletter/newsletter-filters';
+import { downloadAsMarkdown } from '@/lib/utils/download';
+import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -89,8 +91,25 @@ export default function DashboardPage() {
   };
 
   const handleDownload = async (id: string, title: string) => {
-    // TODO: Implement download functionality
-    console.log('Download:', id, title);
+    try {
+      // Find the newsletter in the current list
+      const newsletter = newsletters.find((n) => n.id === id);
+      if (!newsletter) {
+        toast.error('뉴스레터를 찾을 수 없습니다.');
+        return;
+      }
+
+      // Generate filename from title
+      const filename = `${title
+        .replace(/[^a-zA-Z0-9가-힣]/g, '-')
+        .toLowerCase()}.md`;
+
+      downloadAsMarkdown(newsletter.content, filename);
+      toast.success('다운로드가 시작되었습니다.');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('다운로드에 실패했습니다.');
+    }
   };
 
   if (loading && newsletters.length === 0) {
