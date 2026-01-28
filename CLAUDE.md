@@ -75,8 +75,8 @@ npm run format:check
 ### API Backend (FastAPI)
 
 ```bash
-# Install FastAPI dependencies
-uv pip install -r api/requirements.txt
+# Install all dependencies (including FastAPI)
+uv sync
 
 # Run development server (http://localhost:8000)
 cd api
@@ -84,7 +84,25 @@ uv run uvicorn main:app --reload --port 8000
 
 # Test health endpoint
 curl http://localhost:8000/api/health
+
+# Test newsletter generation
+curl -X POST http://localhost:8000/api/newsletter/generate \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user-uuid", "topic_id": "topic-uuid"}'
+
+# Check generation status
+curl http://localhost:8000/api/newsletter/status/{request_id}
+
+# Get generated newsletter
+curl http://localhost:8000/api/newsletter/{newsletter_id}
 ```
+
+**Available Endpoints:**
+- `GET /api/health` - Health check
+- `POST /api/newsletter/generate` - Generate newsletter (sync)
+- `POST /api/newsletter/generate/stream` - Generate with SSE streaming
+- `GET /api/newsletter/status/{request_id}` - Check generation status
+- `GET /api/newsletter/{newsletter_id}` - Retrieve newsletter content
 
 ### Environment Setup
 
@@ -104,6 +122,7 @@ Optional LangSmith tracing:
 Required environment variables in `web/.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL (client-side)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key (client-side)
+- `NEXT_PUBLIC_API_URL` - FastAPI backend URL (default: http://localhost:8000)
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side)
 - `RESEND_API_KEY` - Resend email service API key
 - `API_SECRET_KEY` - Internal API authentication secret
@@ -116,17 +135,43 @@ cp web/.env.example web/.env.local
 
 Environment variables are validated at runtime using Zod schema in `web/lib/env.ts`.
 
+#### API Backend
+
+Required environment variables in `api/.env`:
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for database access)
+- `ANTHROPIC_API_KEY` - Claude API key for LLM
+- `TAVILY_API_KEY` - Tavily API key for web search
+- `LANGCHAIN_API_KEY` or `LANGSMITH_API_KEY` - LangSmith API key for job tracking
+- `LANGSMITH_TRACING=true` - Enable LangSmith tracing
+- `LANGSMITH_PROJECT="newsletter-automation"` - LangSmith project name
+
+Create from template:
+```bash
+cp api/.env.example api/.env
+# Edit api/.env with actual API keys
+```
+
+**Note:** The API backend shares the same Python environment as the CLI, so API keys can also be set in the root `.env` file.
+
 ## Architecture
 
 ### Monorepo Structure
 
-The project uses a monorepo structure with three independent components:
+The project uses a monorepo structure with three main components:
 
 ```
 newsletter-automation-gpters/
-├── src/              # Python CLI newsletter generator (existing)
-├── web/              # Next.js frontend (new)
-├── api/              # FastAPI backend (placeholder)
+├── src/              # Python CLI newsletter generator + API wrapper
+│   ├── agents/       # LangGraph agents (research, topic_selector, tone_editor)
+│   ├── api/          # API wrapper modules (NEW)
+│   │   ├── models.py              # Pydantic models
+│   │   ├── newsletter_generator.py # Newsletter generation orchestrator
+│   │   └── supabase_client.py     # Database integration
+│   ├── tools/        # Search and content tools
+│   └── main.py       # CLI orchestrator
+├── web/              # Next.js frontend
+├── api/              # FastAPI backend endpoints
 ├── .github/workflows/  # CI/CD pipelines
 │   ├── ci-web.yml      # Next.js CI (lint, type-check, build)
 │   └── ci-python.yml   # Python CI (uv, pytest)
