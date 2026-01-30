@@ -1,7 +1,7 @@
 """Supabase client for newsletter generation."""
 
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime
 from supabase import create_client, Client
 from .models import (

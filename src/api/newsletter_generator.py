@@ -1,10 +1,8 @@
 """Newsletter generator with LangSmith integration."""
 
 import os
-import sys
 from typing import AsyncGenerator, Dict, Any
 from datetime import datetime
-from pathlib import Path
 
 from deepagents import create_deep_agent
 from langsmith import Client as LangSmithClient
