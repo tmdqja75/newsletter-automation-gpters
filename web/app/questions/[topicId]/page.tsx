@@ -4,6 +4,9 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { QuestionCard } from '@/components/question-card';
 import { Button } from '@/components/ui/button';
+import { Container } from '@/components/ui/container';
+import { Progress } from '@/components/ui/progress';
+import { AuthStatus } from '@/components/auth/auth-status';
 import { getQuestionsByTopicId, saveAnswers } from '@/lib/actions/question';
 import { getTopicById } from '@/lib/actions/topic';
 import { env } from '@/lib/env';
@@ -264,10 +267,10 @@ export default function QuestionsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-black">
         <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-          <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-950 dark:border-zinc-800 dark:border-t-zinc-50"></div>
+          <p className="text-lg text-zinc-600 dark:text-zinc-400">로딩 중...</p>
         </div>
       </div>
     );
@@ -275,71 +278,67 @@ export default function QuestionsPage() {
 
   if (generating) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="w-full max-w-md px-6 text-center">
-          <div className="mb-6">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-            <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-black">
+        <Container className="text-center" maxWidth="md">
+          <div className="mb-8">
+            <div className="mx-auto mb-6 h-16 w-16 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-950 dark:border-zinc-800 dark:border-t-zinc-50"></div>
+            <h2 className="mb-3 text-3xl font-bold text-zinc-950 sm:text-4xl dark:text-zinc-50">
               리서치 중입니다...
             </h2>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-lg text-zinc-600 dark:text-zinc-400">
               {generationMessage}
             </p>
           </div>
 
-          {/* Progress bar */}
-          <div className="mb-4">
-            <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              {generationProgress}%
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-              <div
-                className="h-full bg-blue-600 transition-all duration-500"
-                style={{ width: `${generationProgress}%` }}
-              />
-            </div>
+          <div className="mb-8">
+            <Progress
+              value={generationProgress}
+              showPercentage={true}
+              className="mx-auto max-w-md"
+            />
           </div>
 
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="mb-8 text-sm text-zinc-500 dark:text-zinc-400">
             AI가 최신 자료를 수집하고 분석하고 있습니다.
             <br />
             잠시만 기다려주세요.
           </p>
 
-          <div className="mt-6 flex justify-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                // Use full navigation so it works even if streaming blocks client routing.
-                window.location.assign('/dashboard');
-              }}
-            >
-              대시보드로 이동
-            </Button>
-          </div>
-        </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              // Use full navigation so it works even if streaming blocks client routing.
+              window.location.assign('/dashboard');
+            }}
+          >
+            대시보드로 이동
+          </Button>
+        </Container>
       </div>
     );
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-black">
-      <header className="w-full border-b border-gray-200 px-6 py-4 sm:px-16 dark:border-gray-800">
-        <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-          Automata
-        </h1>
+      <header className="w-full py-4">
+        <Container className="flex items-center justify-between" maxWidth="2xl">
+          <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            Automata
+          </h1>
+          <AuthStatus />
+        </Container>
       </header>
 
-      <main className="flex-1 px-6 py-8 sm:px-16">
-        <div className="mx-auto max-w-3xl">
+      <main className="flex-1 py-12">
+        <Container maxWidth="md">
           {/* Topic header */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="mb-12">
+            <h2 className="text-4xl leading-tight font-bold tracking-tight text-zinc-950 sm:text-5xl dark:text-zinc-50">
               추가 질문
             </h2>
-            <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-              <span className="font-medium text-blue-600 dark:text-blue-400">
+            <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <span className="font-medium text-zinc-950 dark:text-zinc-50">
                 {topic?.topic_text}
               </span>
               에 대해 더 알려주세요
@@ -347,25 +346,16 @@ export default function QuestionsPage() {
           </div>
 
           {/* Progress bar */}
-          <div className="mb-8">
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">
-                답변 진행률
-              </span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">
-                {answeredCount} / {totalCount}
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-              <div
-                className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
+          <div className="mb-12">
+            <Progress
+              value={progressPercentage}
+              label={`답변 진행률: ${answeredCount} / ${totalCount}`}
+              showPercentage={false}
+            />
           </div>
 
           {/* Questions form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {questionStates.map((state, index) => (
               <QuestionCard
                 key={state.question.id}
@@ -379,7 +369,7 @@ export default function QuestionsPage() {
             ))}
 
             {/* Submit button */}
-            <div className="flex justify-end gap-4 pt-6">
+            <div className="flex justify-end gap-4 pt-8">
               <Button
                 type="button"
                 variant="outline"
@@ -388,16 +378,26 @@ export default function QuestionsPage() {
               >
                 취소
               </Button>
-              <Button type="submit" disabled={isPending} size="lg">
+              <Button
+                type="submit"
+                disabled={isPending}
+                size="lg"
+                className="rounded-full"
+              >
                 {isPending ? '저장 중...' : '제출하기'}
               </Button>
             </div>
           </form>
-        </div>
+        </Container>
       </main>
 
-      <footer className="flex w-full items-center justify-center px-6 py-8 text-sm text-zinc-500 dark:text-zinc-600">
-        © 2026 Automata. AI-powered newsletter service.
+      <footer className="w-full py-8">
+        <Container
+          className="flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-600"
+          maxWidth="2xl"
+        >
+          © 2026 Automata. AI-powered newsletter service.
+        </Container>
       </footer>
     </div>
   );
