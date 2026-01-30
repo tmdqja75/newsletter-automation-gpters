@@ -7,6 +7,7 @@ import { getUserNewsletters } from '@/lib/actions/newsletter';
 import { NewsletterCard } from '@/components/newsletter/newsletter-card';
 import { NewsletterFilters } from '@/components/newsletter/newsletter-filters';
 import { Container } from '@/components/ui/container';
+import { GlowingShadow } from '@/components/ui/glowing-shadow';
 import { downloadAsMarkdown } from '@/lib/utils/download';
 import toast from 'react-hot-toast';
 
@@ -206,12 +207,13 @@ export default function DashboardPage() {
             <>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {newsletters.map((newsletter) => (
-                  <NewsletterCard
-                    key={newsletter.id}
-                    newsletter={newsletter}
-                    onDelete={handleDelete}
-                    onDownload={handleDownload}
-                  />
+                  <GlowingShadow key={newsletter.id}>
+                    <NewsletterCard
+                      newsletter={newsletter}
+                      onDelete={handleDelete}
+                      onDownload={handleDownload}
+                    />
+                  </GlowingShadow>
                 ))}
               </div>
 
