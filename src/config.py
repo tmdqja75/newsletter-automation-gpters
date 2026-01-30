@@ -1,6 +1,7 @@
 """Configuration and prompts for the newsletter automation system."""
 
 import os
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,6 +40,99 @@ ORCHESTRATOR_PROMPT = """당신은 '오토마타' AI 뉴스레터 작성을 조�
 - 03_[토픽명].md
 - 04_study_cafe.md
 """
+
+
+def build_research_agent_prompt(
+    topic: str,
+    topic_description: Optional[str] = None,
+    subtopics: Optional[list[str]] = None,
+    preferred_sources: Optional[list[str]] = None,
+    goal: Optional[str] = None,
+    difficulty: Optional[str] = None,
+) -> str:
+    """Build personalized research agent system prompt.
+
+    Args:
+        topic: Main topic to research (e.g., "의료 AI", "블록체인 기술")
+        topic_description: Optional detailed description of the topic
+        subtopics: Specific areas of interest within the topic
+        preferred_sources: Preferred source types (e.g., ["papers", "blogs", "news"])
+        goal: User's purpose - "work", "learning", "business", or "hobby"
+        difficulty: User's level - "beginner", "intermediate", or "advanced"
+
+    Returns:
+        Personalized system prompt string for the research agent
+    """
+    # Build context section
+    context_parts = [f"**주제**: {topic}"]
+
+    if topic_description:
+        context_parts.append(f"**상세 설명**: {topic_description}")
+
+    if subtopics:
+        context_parts.append(f"**관심 영역**: {', '.join(subtopics)}")
+
+    if goal:
+        goal_map = {
+            "work": "업무/프로젝트 적용",
+            "learning": "학습 및 이해",
+            "business": "비즈니스 분석",
+            "hobby": "취미/개인 프로젝트",
+        }
+        context_parts.append(f"**목적**: {goal_map.get(goal, goal)}")
+
+    if difficulty:
+        difficulty_map = {
+            "beginner": "입문 (기초 개념 중심)",
+            "intermediate": "중급 (실무 적용 중심)",
+            "advanced": "고급 (최신 연구 및 심화 내용)",
+        }
+        context_parts.append(f"**난이도**: {difficulty_map.get(difficulty, difficulty)}")
+
+    context_section = "\n".join(context_parts)
+
+    # Build search guidance section
+    search_guidance = "최신 뉴스, 기술 블로그, 연구 논문, 공식 문서 등을 검색합니다."
+
+    if preferred_sources:
+        source_map = {
+            "papers": "연구 논문 (arxiv.org 등)",
+            "blogs": "기술 블로그 및 공식 발표",
+            "news": "뉴스 및 미디어 기사",
+            "docs": "공식 문서 및 레퍼런스",
+        }
+        preferred_names = [source_map.get(s, s) for s in preferred_sources]
+        search_guidance = f"특히 다음 소스를 우선적으로 검색합니다: {', '.join(preferred_names)}"
+
+    # Build the complete prompt
+    prompt = f"""당신은 리서치 전문가입니다.
+
+## 사용자 컨텍스트
+{context_section}
+
+## 검색 대상
+{search_guidance}
+
+주제와 관련된 다음 정보를 수집하세요:
+- 최신 발표 및 뉴스 (최근 2주 이내 우선)
+- 주요 기술 트렌드 및 발전 사항
+- 실용적인 활용 사례
+- 관련 도구, 프레임워크, 라이브러리
+- 학습 자료 (튜토리얼, 가이드, 영상 등)
+
+## 출력 형식
+각 항목에 대해 다음 정보를 제공하세요:
+1. 제목
+2. 요약 (2-3문장)
+3. 출처 URL
+4. 발표/게시 날짜
+5. 중요도 (높음/중간/낮음)
+6. 카테고리 (뉴스/기술/활용사례/학습자료/연구)
+
+최소 5개 이상의 관련 항목을 찾아주세요.
+"""
+    return prompt
+
 
 RESEARCH_AGENT_PROMPT = """당신은 AI와 LLM 분야의 리서치 전문가입니다.
 
