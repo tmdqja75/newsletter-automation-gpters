@@ -19,9 +19,7 @@ export default function Home() {
       <ShaderAnimation />
       <header className="relative z-10 w-full py-4">
         <Container className="flex items-center justify-between" maxWidth="2xl">
-          <h1 className="text-xl font-semibold text-white">
-            Automata
-          </h1>
+          <h1 className="text-xl font-semibold text-white">Automata</h1>
           <AuthStatus />
         </Container>
       </header>

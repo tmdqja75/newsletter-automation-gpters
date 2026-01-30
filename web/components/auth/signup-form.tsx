@@ -63,7 +63,7 @@ export function SignupForm() {
               <path d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl dark:text-zinc-50">
             이메일을 확인해주세요
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -88,7 +88,7 @@ export function SignupForm() {
   return (
     <div className="w-full max-w-xl space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-5xl">
+        <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl dark:text-zinc-50">
           회원가입
         </h1>
         <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">

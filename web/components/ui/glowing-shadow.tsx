@@ -43,13 +43,16 @@ export function GlowingShadow({ children }: GlowingShadowProps) {
           position: relative;
           border-radius: var(--card-radius);
           padding: var(--border-width);
-          background: radial-gradient(
+          background:
+            radial-gradient(
               240px circle at var(--glow-x) var(--glow-y),
               var(--glow-color),
               transparent 65%
             ),
             linear-gradient(var(--border-color), var(--border-color));
-          transition: box-shadow 0.25s ease, background 0.25s ease;
+          transition:
+            box-shadow 0.25s ease,
+            background 0.25s ease;
         }
 
         .glow-card:hover {

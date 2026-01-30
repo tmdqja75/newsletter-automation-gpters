@@ -83,7 +83,14 @@ export function NewsletterCard({
 
   // Generate thumbnail background gradient based on topic
   const getGradient = (topic: string) => {
-    return 'from-slate-700 to-indigo-900';
+    const gradients = [
+      'from-slate-700 to-indigo-900',
+      'from-emerald-700 to-teal-900',
+      'from-amber-700 to-orange-900',
+      'from-rose-700 to-pink-900',
+    ];
+    const index = topic.length % gradients.length;
+    return gradients[index];
   };
 
   return (
