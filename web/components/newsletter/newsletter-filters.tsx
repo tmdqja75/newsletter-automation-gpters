@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 interface NewsletterFiltersProps {
@@ -59,12 +58,12 @@ export function NewsletterFilters({
           <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             검색
           </label>
-          <Input
+          <input
             type="text"
             placeholder="제목 또는 주제로 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full"
+            className="w-full rounded-full border border-solid border-zinc-200 px-6 py-4 text-base transition-colors outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-600 dark:focus:border-zinc-600"
           />
         </div>
 
@@ -77,7 +76,7 @@ export function NewsletterFilters({
             <select
               value={selectedTopic}
               onChange={(e) => handleTopicChange(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2 text-zinc-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-black dark:text-zinc-100"
+              className="w-full rounded-full border border-solid border-zinc-200 px-6 py-4 text-base transition-colors outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-600"
             >
               <option value="">모든 주제</option>
               {topics.map((topic) => (

@@ -70,7 +70,7 @@ export function NewsletterShare({ newsletterId, title }: NewsletterShareProps) {
               type="text"
               value={shareUrl}
               readOnly
-              className="flex-1 rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2 text-sm text-zinc-950 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="flex-1 rounded-full border border-solid border-zinc-200 bg-zinc-50 px-6 py-3 text-sm text-zinc-950 outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
             />
             <Button onClick={handleCopyLink} variant="outline">
               {copied ? '복사됨!' : '복사'}
