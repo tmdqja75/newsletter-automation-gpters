@@ -16,15 +16,15 @@ interface NewsletterContentProps {
 
 export function NewsletterContent({ content }: NewsletterContentProps) {
   return (
-    <article className="prose prose-slate dark:prose-invert max-w-none">
+    <article className="prose prose-zinc dark:prose-invert max-w-none">
       {/* Title */}
-      <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
+      <h1 className="mb-4 text-3xl font-bold text-zinc-950 dark:text-zinc-50">
         {content.title}
       </h1>
 
       {/* Reading time */}
       {content.estimated_reading_time && (
-        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
           예상 읽기 시간: {content.estimated_reading_time}분
         </p>
       )}
@@ -47,7 +47,7 @@ export function NewsletterContent({ content }: NewsletterContentProps) {
               </SyntaxHighlighter>
             ) : (
               <code
-                className="rounded bg-gray-100 px-1.5 py-0.5 text-sm dark:bg-gray-800"
+                className="rounded bg-zinc-100 px-1.5 py-0.5 text-sm dark:bg-zinc-800"
                 {...rest}
               >
                 {children}
