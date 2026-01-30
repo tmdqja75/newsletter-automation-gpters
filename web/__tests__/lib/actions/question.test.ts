@@ -151,7 +151,7 @@ describe('Question Actions', () => {
       });
 
       // Mock answers upsert
-      mockUpsert.mockResolvedValueOnce({
+      mockUpsert.mockReturnValueOnce({
         data: null,
         error: null,
       });
@@ -180,9 +180,18 @@ describe('Question Actions', () => {
         error: { message: 'Not authenticated' },
       });
 
+      const answers = [
+        {
+          question_id: '550e8400-e29b-41d4-a716-446655440001',
+          answer_text: '업무',
+          answer_value: { value: '업무' },
+          skipped: false,
+        },
+      ];
+
       const result = await saveAnswers(
         '550e8400-e29b-41d4-a716-446655440002',
-        []
+        answers
       );
 
       expect(result.success).toBe(false);
@@ -283,7 +292,7 @@ describe('Question Actions', () => {
         error: null,
       });
 
-      mockUpsert.mockResolvedValueOnce({
+      mockUpsert.mockReturnValueOnce({
         data: null,
         error: { message: 'Database error' },
       });
@@ -334,9 +343,14 @@ describe('Question Actions', () => {
         error: null,
       });
 
-      mockEq.mockReturnValueOnce({
+      // Mock the chained eq calls for getUserAnswers
+      const mockSecondEq = vi.fn().mockReturnValue({
         data: mockAnswers,
         error: null,
+      });
+
+      mockEq.mockReturnValueOnce({
+        eq: mockSecondEq,
       });
 
       const result = await getUserAnswers(
