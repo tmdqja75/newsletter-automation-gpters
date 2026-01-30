@@ -2,13 +2,14 @@
 
 import os
 import sys
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pathlib import Path
 
 from deepagents import create_deep_agent
 
 from .config import ORCHESTRATOR_PROMPT, ARTICLES_DIR, ANTHROPIC_API_KEY, TAVILY_API_KEY
-from .agents import research_subagent, topic_selection_agent, tone_agent
+from .agents import create_research_subagent, topic_selection_agent, tone_agent
 from .utils.merge_articles import merge_newsletter
 
 
@@ -47,12 +48,23 @@ def save_article(content: str, filename: str, date_dir: str) -> str:
     return str(file_path)
 
 
-def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
+def create_newsletter_agent(
+    articles_root: str = None,
+    use_hitl: bool = False,
+    user_context: Optional[Dict[str, Any]] = None,
+):
     """Create the main newsletter orchestrator agent.
 
     Args:
         articles_root: Root directory for article storage (default: ./articles)
         use_hitl: Whether to use human-in-the-loop for topic selection
+        user_context: Optional user context for personalized research
+            - topic: str - Main topic to research
+            - topic_description: str (optional) - Detailed description
+            - subtopics: list[str] (optional) - Specific areas of interest
+            - preferred_sources: list[str] (optional) - Preferred source types
+            - goal: str (optional) - User's purpose (work/learning/business/hobby)
+            - difficulty: str (optional) - User's level (beginner/intermediate/advanced)
 
     Returns:
         Configured deep agent for newsletter automation
@@ -63,11 +75,14 @@ def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
     # Ensure articles directory exists
     Path(articles_root).mkdir(parents=True, exist_ok=True)
 
+    # Create research subagent (personalized if context provided)
+    research_agent = create_research_subagent(user_context)
+
     # Build agent configuration
     agent_config = {
         "system_prompt": ORCHESTRATOR_PROMPT,
         "tools": [save_article, merge_newsletter],
-        "subagents": [research_subagent, topic_selection_agent, tone_agent],
+        "subagents": [research_agent, topic_selection_agent, tone_agent],
     }
 
     # Only add interrupt_on if human-in-the-loop is enabled
@@ -83,12 +98,15 @@ def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
     return agent
 
 
-def run_newsletter_generation(target_date: str = None):
+def run_newsletter_generation(
+    target_date: str = None, user_context: Optional[Dict[str, Any]] = None
+):
     """Run the full newsletter generation workflow.
 
     Args:
         target_date: Target date for the newsletter (YYYY-MM-DD format)
                     Defaults to next Wednesday
+        user_context: Optional user context for personalized research (see create_newsletter_agent)
 
     Returns:
         Path to the generated newsletter
@@ -101,7 +119,7 @@ def run_newsletter_generation(target_date: str = None):
         target_date = datetime.now().strftime("%Y-%m-%d")
 
     print("🔧 에이전트 초기화 중...")
-    agent = create_newsletter_agent()
+    agent = create_newsletter_agent(user_context=user_context)
 
     prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
 
