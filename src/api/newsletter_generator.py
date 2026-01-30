@@ -10,7 +10,7 @@ from deepagents import create_deep_agent
 from langsmith import Client as LangSmithClient
 
 from ..config import ANTHROPIC_API_KEY, TAVILY_API_KEY
-from ..agents import research_subagent, topic_selection_agent, tone_agent
+from ..agents import create_research_subagent, topic_selection_agent, tone_agent
 from .models import (
     NewsletterContext,
     ProgressUpdate,
@@ -31,6 +31,72 @@ class NewsletterGenerator:
         langsmith_api_key = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY")
         if langsmith_api_key:
             self.langsmith_client = LangSmithClient(api_key=langsmith_api_key)
+
+    def _extract_research_context(self, context: NewsletterContext) -> Dict[str, Any]:
+        """
+        Extract research context from newsletter context.
+
+        Args:
+            context: Newsletter context with topic and user answers
+
+        Returns:
+            Dictionary with research agent parameters
+        """
+        research_context = {
+            "topic": context.topic_text,
+            "topic_description": context.topic_description,
+        }
+
+        # Extract subtopics from user answers
+        subtopics = []
+        preferred_sources = []
+        goal = None
+        difficulty = None
+
+        for answer in context.user_answers:
+            if answer.skipped:
+                continue
+
+            # Map question types to research context
+            if answer.question_type == "subtopic":
+                # Extract subtopic values
+                if answer.answer_value and "values" in answer.answer_value:
+                    subtopics.extend(answer.answer_value["values"])
+                elif answer.answer_text:
+                    subtopics.append(answer.answer_text)
+
+            elif answer.question_type == "source":
+                # Extract preferred sources
+                if answer.answer_value and "values" in answer.answer_value:
+                    preferred_sources.extend(answer.answer_value["values"])
+                elif answer.answer_text:
+                    preferred_sources.append(answer.answer_text)
+
+            elif answer.question_type == "goal":
+                # Extract goal
+                if answer.answer_value and "value" in answer.answer_value:
+                    goal = answer.answer_value["value"]
+                elif answer.answer_text:
+                    goal = answer.answer_text.lower()
+
+            elif answer.question_type == "difficulty":
+                # Extract difficulty
+                if answer.answer_value and "value" in answer.answer_value:
+                    difficulty = answer.answer_value["value"]
+                elif answer.answer_text:
+                    difficulty = answer.answer_text.lower()
+
+        # Add to research context if present
+        if subtopics:
+            research_context["subtopics"] = subtopics
+        if preferred_sources:
+            research_context["preferred_sources"] = preferred_sources
+        if goal:
+            research_context["goal"] = goal
+        if difficulty or context.user_preferences.get("difficulty"):
+            research_context["difficulty"] = difficulty or context.user_preferences.get("difficulty")
+
+        return research_context
 
     def _build_personalized_prompt(self, context: NewsletterContext) -> str:
         """
@@ -159,11 +225,17 @@ class NewsletterGenerator:
             # Build prompt
             prompt = self._build_personalized_prompt(context)
 
+            # Extract research context for personalization
+            research_context = self._extract_research_context(context)
+
+            # Create personalized research agent
+            research_agent = create_research_subagent(research_context)
+
             # Create agent
             agent = create_deep_agent(
                 system_prompt="You are an expert research newsletter writer. Follow the user's instructions carefully and produce high-quality, well-researched content.",
                 tools=[],  # No tools needed, subagents have them
-                subagents=[research_subagent, topic_selection_agent, tone_agent],
+                subagents=[research_agent, topic_selection_agent, tone_agent],
             )
 
             # Configure LangSmith metadata
@@ -290,11 +362,17 @@ class NewsletterGenerator:
             # Build prompt
             prompt = self._build_personalized_prompt(context)
 
+            # Extract research context for personalization
+            research_context = self._extract_research_context(context)
+
+            # Create personalized research agent
+            research_agent = create_research_subagent(research_context)
+
             # Create agent
             agent = create_deep_agent(
                 system_prompt="You are an expert research newsletter writer. Follow the user's instructions carefully and produce high-quality, well-researched content.",
                 tools=[],
-                subagents=[research_subagent, topic_selection_agent, tone_agent],
+                subagents=[research_agent, topic_selection_agent, tone_agent],
             )
 
             config: Dict[str, Any] = {
