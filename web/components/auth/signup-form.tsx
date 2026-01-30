@@ -50,9 +50,9 @@ export function SignupForm() {
     return (
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
             <svg
-              className="h-6 w-6 text-green-600 dark:text-green-400"
+              className="h-8 w-8 text-green-600 dark:text-green-400"
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -63,8 +63,10 @@ export function SignupForm() {
               <path d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h1 className="text-3xl font-bold">이메일을 확인해주세요</h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-5xl">
+            이메일을 확인해주세요
+          </h1>
+          <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
             회원가입이 완료되었습니다.
             <br />
             이메일에서 인증 링크를 클릭하여 가입을 완료해주세요.
@@ -74,7 +76,7 @@ export function SignupForm() {
         <div className="text-center">
           <Link
             href="/login"
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            className="font-medium text-zinc-950 underline hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
           >
             로그인 페이지로 이동
           </Link>
@@ -86,8 +88,10 @@ export function SignupForm() {
   return (
     <div className="w-full max-w-md space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold">회원가입</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-5xl">
+          회원가입
+        </h1>
+        <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
           새 계정을 만드세요
         </p>
       </div>
@@ -153,12 +157,12 @@ export function SignupForm() {
         </Button>
 
         <div className="text-center text-sm">
-          <span className="text-gray-600 dark:text-gray-400">
+          <span className="text-zinc-600 dark:text-zinc-400">
             이미 계정이 있으신가요?{' '}
           </span>
           <Link
             href="/login"
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            className="font-medium text-zinc-950 underline hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
           >
             로그인
           </Link>

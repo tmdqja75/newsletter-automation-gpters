@@ -60,8 +60,10 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-md space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold">로그인</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-5xl">
+          로그인
+        </h1>
+        <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
           계정에 로그인하세요
         </p>
       </div>
@@ -111,12 +113,12 @@ export function LoginForm() {
         </Button>
 
         <div className="text-center text-sm">
-          <span className="text-gray-600 dark:text-gray-400">
+          <span className="text-zinc-600 dark:text-zinc-400">
             계정이 없으신가요?{' '}
           </span>
           <Link
             href="/signup"
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            className="font-medium text-zinc-950 underline hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
           >
             회원가입
           </Link>
