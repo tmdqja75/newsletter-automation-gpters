@@ -83,16 +83,7 @@ export function NewsletterCard({
 
   // Generate thumbnail background gradient based on topic
   const getGradient = (topic: string) => {
-    const gradients = [
-      'from-blue-400 to-blue-600',
-      'from-purple-400 to-purple-600',
-      'from-pink-400 to-pink-600',
-      'from-green-400 to-green-600',
-      'from-yellow-400 to-yellow-600',
-      'from-red-400 to-red-600',
-    ];
-    const index = topic.length % gradients.length;
-    return gradients[index];
+    return 'from-slate-700 to-indigo-900';
   };
 
   return (
@@ -102,7 +93,7 @@ export function NewsletterCard({
         className={`h-32 bg-gradient-to-br ${getGradient(newsletter.user_topics.topic_text)} flex items-center justify-center`}
       >
         <div className="px-4 text-center text-white">
-          <h3 className="line-clamp-2 text-lg font-bold">
+          <h3 className="line-clamp-2 text-lg font-semibold tracking-tight">
             {newsletter.content.title}
           </h3>
         </div>
