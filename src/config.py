@@ -134,6 +134,112 @@ def build_research_agent_prompt(
     return prompt
 
 
+# Duration configuration for personalized newsletters
+DURATION_CONFIG = {
+    "short": {"key_issues": 2, "deep_dive": False, "word_limit": 500},
+    "medium": {"key_issues": 3, "deep_dive": True, "word_limit": 800},
+    "long": {"key_issues": 4, "deep_dive": True, "word_limit": 1500},
+}
+
+
+def build_topic_selector_prompt(
+    difficulty: Optional[str] = None,
+    duration: Optional[str] = None,
+    subtopics: Optional[list[str]] = None,
+) -> str:
+    """Build personalized topic selector system prompt.
+
+    Args:
+        difficulty: User's level - "beginner", "intermediate", or "advanced"
+        duration: Preferred reading length - "short", "medium", or "long"
+        subtopics: Specific areas of interest to prioritize
+
+    Returns:
+        Personalized system prompt string for the topic selector
+    """
+    # Get duration config
+    duration_key = duration or "medium"
+    config = DURATION_CONFIG.get(duration_key, DURATION_CONFIG["medium"])
+    num_topics = config["key_issues"]
+    word_limit = config["word_limit"]
+    deep_dive = config["deep_dive"]
+
+    # Build difficulty guidance
+    difficulty_guidance = ""
+    if difficulty == "beginner":
+        difficulty_guidance = """
+## 난이도 고려사항
+- **입문자 중심**: 개념 소개, 입문 가이드, 쉬운 튜토리얼 우선
+- 복잡한 연구 논문이나 고급 기술 분석은 피하기
+- 실용적이고 이해하기 쉬운 활용 사례 선호
+"""
+    elif difficulty == "intermediate":
+        difficulty_guidance = """
+## 난이도 고려사항
+- **중급자 중심**: 실전 적용, 비교 분석, 베스트 프랙티스 우선
+- 기초 개념과 고급 연구의 균형
+- 실무에 바로 적용 가능한 내용 선호
+"""
+    elif difficulty == "advanced":
+        difficulty_guidance = """
+## 난이도 고려사항
+- **고급자 중심**: 심층 분석, 최신 연구, 기술적 깊이 우선
+- 연구 논문, 아키텍처 설계, 성능 최적화 등 전문적 내용 선호
+- 최신 연구 동향과 혁신적 접근법 중시
+"""
+
+    # Build subtopic guidance
+    subtopic_guidance = ""
+    if subtopics:
+        subtopic_list = ", ".join(subtopics)
+        subtopic_guidance = f"""
+## 관심 영역 우선순위
+사용자가 관심있는 하위 토픽: **{subtopic_list}**
+
+토픽 선정 시 다음 우선순위를 적용하세요:
+1. 위 하위 토픽과 직접 관련된 내용을 우선 선정
+2. 제목이나 내용에 관심 키워드가 포함된 토픽에 높은 점수 부여
+3. 관련도가 높은 순서대로 배치
+"""
+
+    # Build duration-specific instructions
+    deep_dive_instruction = ""
+    if deep_dive:
+        deep_dive_instruction = """
+**심층 분석(Deep Dive)**: 마지막 토픽은 좀 더 깊이 있는 분석이나 상세한 가이드로 구성
+"""
+
+    # Build the complete prompt
+    prompt = f"""수집된 리서치 결과를 바탕으로 이번 주 뉴스레터에 포함할 토픽을 선정합니다.
+
+## 선정 기준
+1. 시의성: 최근 1주일 내 발표/논의된 내용
+2. 관련성: 사용자 주제와 직접적 연관
+3. 가치: 사용자에게 실질적 도움이 되는 정보
+4. 다양성: 모델, 활용사례, 트렌드, 학습자료 균형
+{difficulty_guidance}{subtopic_guidance}
+## 토픽 구성
+- **핵심 이슈 {num_topics}개**: 각 아티클 약 {word_limit}자 분량
+{deep_dive_instruction}
+## 출력 형식
+"""
+
+    # Add output format based on number of topics
+    for i in range(1, num_topics + 1):
+        prompt += f"""
+**핵심 이슈 {i}**: [제목]
+- 선정 이유: ...
+- 예상 키워드: ...
+"""
+
+    prompt += """
+### 대안 토픽 (2-3개)
+- ...
+"""
+
+    return prompt
+
+
 RESEARCH_AGENT_PROMPT = """당신은 AI와 LLM 분야의 리서치 전문가입니다.
 
 ## 검색 대상
