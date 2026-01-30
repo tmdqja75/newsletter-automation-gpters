@@ -25,7 +25,10 @@ export default function Home() {
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center gap-12 py-16">
-        <Container className="flex flex-col items-center gap-6 text-center" maxWidth="md">
+        <Container
+          className="flex flex-col items-center gap-6 text-center"
+          maxWidth="md"
+        >
           <h2 className="text-4xl leading-tight font-bold tracking-tight text-zinc-950 sm:text-5xl dark:text-zinc-50">
             개인화된 리서치 뉴스레터
           </h2>
@@ -41,7 +44,10 @@ export default function Home() {
       </main>
 
       <footer className="w-full py-8">
-        <Container className="flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-600" maxWidth="2xl">
+        <Container
+          className="flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-600"
+          maxWidth="2xl"
+        >
           © 2026 Automata. AI-powered newsletter service.
         </Container>
       </footer>

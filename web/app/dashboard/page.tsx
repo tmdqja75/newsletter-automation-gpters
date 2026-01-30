@@ -164,13 +164,13 @@ export default function DashboardPage() {
             </p>
           </div>
 
-        {/* Filters */}
-        <NewsletterFilters
-          topics={topics}
-          onSearchChange={setSearch}
-          onTopicChange={setSelectedTopic}
-          onSortChange={setSortBy}
-        />
+          {/* Filters */}
+          <NewsletterFilters
+            topics={topics}
+            onSearchChange={setSearch}
+            onTopicChange={setSelectedTopic}
+            onSortChange={setSortBy}
+          />
 
           {/* Newsletter Grid */}
           {newsletters.length === 0 ? (

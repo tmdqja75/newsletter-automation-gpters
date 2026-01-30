@@ -9,7 +9,14 @@ This directory contains reusable UI components following a consistent design sys
 A flexible card container with optional header, content, and footer sections.
 
 ```tsx
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui';
 
 <Card>
   <CardHeader>
@@ -22,10 +29,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
   <CardFooter>
     <Button>Action</Button>
   </CardFooter>
-</Card>
+</Card>;
 ```
 
 **Props:**
+
 - All standard HTML div attributes
 - `className` for custom styling
 
@@ -38,10 +46,11 @@ import { Container } from '@/components/ui';
 
 <Container maxWidth="lg">
   <h1>Page content</h1>
-</Container>
+</Container>;
 ```
 
 **Props:**
+
 - `maxWidth`: 'sm' | 'md' | 'lg' | 'xl' | '2xl' (default: 'lg')
   - sm: max-w-2xl
   - md: max-w-3xl
@@ -57,10 +66,11 @@ Accessible progress bar with optional label and percentage display.
 ```tsx
 import { Progress } from '@/components/ui';
 
-<Progress value={60} label="Loading" showPercentage />
+<Progress value={60} label="Loading" showPercentage />;
 ```
 
 **Props:**
+
 - `value`: number (0-100, required)
 - `label`: string (optional)
 - `showPercentage`: boolean (default: false)
@@ -81,6 +91,7 @@ import { Badge } from '@/components/ui';
 ```
 
 **Props:**
+
 - `variant`: 'default' | 'success' | 'warning' | 'error' | 'info' (default: 'default')
 - `className` for additional styling
 
@@ -91,13 +102,11 @@ Multi-line text input with consistent styling.
 ```tsx
 import { Textarea } from '@/components/ui';
 
-<Textarea
-  placeholder="Enter your message"
-  rows={4}
-/>
+<Textarea placeholder="Enter your message" rows={4} />;
 ```
 
 **Props:**
+
 - All standard textarea HTML attributes
 - `className` for custom styling
 - `rows`: number (optional)

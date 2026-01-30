@@ -138,7 +138,10 @@ export default async function NewsletterPage({ params }: PageProps) {
 
       {/* Footer */}
       <footer className="w-full py-8">
-        <Container className="flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-600" maxWidth="lg">
+        <Container
+          className="flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-600"
+          maxWidth="lg"
+        >
           © 2026 Automata. AI-powered newsletter service.
         </Container>
       </footer>
