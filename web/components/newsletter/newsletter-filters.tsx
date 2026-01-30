@@ -52,11 +52,11 @@ export function NewsletterFilters({
   const hasActiveFilters = search || selectedTopic;
 
   return (
-    <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="mb-8 rounded-lg border border-zinc-200 bg-zinc-50 p-6 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex flex-col gap-4">
         {/* Search Bar */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             검색
           </label>
           <Input
@@ -71,13 +71,13 @@ export function NewsletterFilters({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Topic Filter */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               주제 필터
             </label>
             <select
               value={selectedTopic}
               onChange={(e) => handleTopicChange(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2 text-zinc-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-black dark:text-zinc-100"
             >
               <option value="">모든 주제</option>
               {topics.map((topic) => (
@@ -90,7 +90,7 @@ export function NewsletterFilters({
 
           {/* Sort */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               정렬
             </label>
             <div className="flex gap-2">
