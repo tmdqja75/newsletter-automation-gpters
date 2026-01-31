@@ -1,6 +1,5 @@
 """Main orchestrator agent for newsletter automation."""
 
-import os
 import sys
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -9,7 +8,7 @@ from pathlib import Path
 from deepagents import create_deep_agent
 
 from .config import ORCHESTRATOR_PROMPT, ARTICLES_DIR, ANTHROPIC_API_KEY, TAVILY_API_KEY
-from .agents import create_research_subagent, topic_selection_agent, tone_agent
+from .agents import create_research_subagent, create_topic_selector_subagent, tone_agent
 from .utils.merge_articles import merge_newsletter
 
 
@@ -78,11 +77,14 @@ def create_newsletter_agent(
     # Create research subagent (personalized if context provided)
     research_agent = create_research_subagent(user_context)
 
+    # Create topic selector subagent (personalized if context provided)
+    topic_selector = create_topic_selector_subagent(user_context)
+
     # Build agent configuration
     agent_config = {
         "system_prompt": ORCHESTRATOR_PROMPT,
         "tools": [save_article, merge_newsletter],
-        "subagents": [research_agent, topic_selection_agent, tone_agent],
+        "subagents": [research_agent, topic_selector, tone_agent],
     }
 
     # Only add interrupt_on if human-in-the-loop is enabled

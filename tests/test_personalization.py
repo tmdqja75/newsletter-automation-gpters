@@ -1,9 +1,10 @@
-"""Tests for personalization features in research agent."""
+"""Tests for personalization features in research agent and topic selector."""
 
 import pytest
 from src.tools.search_tools import generate_search_queries
-from src.config import build_research_agent_prompt
+from src.config import build_research_agent_prompt, build_topic_selector_prompt, DURATION_CONFIG
 from src.agents.research import create_research_subagent
+from src.agents.topic_selector import create_topic_selector_subagent
 
 
 class TestGenerateSearchQueries:
@@ -225,3 +226,243 @@ class TestCreateResearchSubagent:
         assert "search_ai_news" in tool_names
         assert "search_hackernews" in tool_names
         assert "fetch_article_content" in tool_names
+
+
+class TestDurationConfig:
+    """Test DURATION_CONFIG constants."""
+
+    def test_duration_config_keys(self):
+        """Test that all expected duration keys exist."""
+        assert "short" in DURATION_CONFIG
+        assert "medium" in DURATION_CONFIG
+        assert "long" in DURATION_CONFIG
+
+    def test_short_duration_config(self):
+        """Test short duration configuration."""
+        config = DURATION_CONFIG["short"]
+        assert config["key_issues"] == 2
+        assert config["deep_dive"] is False
+        assert config["word_limit"] == 500
+
+    def test_medium_duration_config(self):
+        """Test medium duration configuration."""
+        config = DURATION_CONFIG["medium"]
+        assert config["key_issues"] == 3
+        assert config["deep_dive"] is True
+        assert config["word_limit"] == 800
+
+    def test_long_duration_config(self):
+        """Test long duration configuration."""
+        config = DURATION_CONFIG["long"]
+        assert config["key_issues"] == 4
+        assert config["deep_dive"] is True
+        assert config["word_limit"] == 1500
+
+
+class TestBuildTopicSelectorPrompt:
+    """Test topic selector prompt building."""
+
+    def test_default_no_context(self):
+        """Test with no context (default behavior)."""
+        prompt = build_topic_selector_prompt()
+        assert "수집된 리서치 결과를 바탕으로" in prompt
+        assert "선정 기준" in prompt
+        # Should default to medium (3 topics)
+        assert "핵심 이슈 3개" in prompt
+        assert "출력 형식" in prompt
+
+    def test_with_beginner_difficulty(self):
+        """Test with beginner difficulty level."""
+        prompt = build_topic_selector_prompt(difficulty="beginner")
+        assert "입문자 중심" in prompt
+        assert "개념 소개" in prompt
+        assert "입문 가이드" in prompt
+        assert "난이도 고려사항" in prompt
+
+    def test_with_intermediate_difficulty(self):
+        """Test with intermediate difficulty level."""
+        prompt = build_topic_selector_prompt(difficulty="intermediate")
+        assert "중급자 중심" in prompt
+        assert "실전 적용" in prompt
+        assert "비교 분석" in prompt
+
+    def test_with_advanced_difficulty(self):
+        """Test with advanced difficulty level."""
+        prompt = build_topic_selector_prompt(difficulty="advanced")
+        assert "고급자 중심" in prompt
+        assert "심층 분석" in prompt
+        assert "최신 연구" in prompt
+        assert "연구 논문" in prompt
+
+    def test_with_short_duration(self):
+        """Test with short duration (2 topics)."""
+        prompt = build_topic_selector_prompt(duration="short")
+        assert "핵심 이슈 2개" in prompt
+        assert "500자" in prompt
+        # Deep dive should not be mentioned for short
+        assert "심층 분석" not in prompt
+
+    def test_with_medium_duration(self):
+        """Test with medium duration (3 topics)."""
+        prompt = build_topic_selector_prompt(duration="medium")
+        assert "핵심 이슈 3개" in prompt
+        assert "800자" in prompt
+        assert "심층 분석" in prompt
+
+    def test_with_long_duration(self):
+        """Test with long duration (4 topics)."""
+        prompt = build_topic_selector_prompt(duration="long")
+        assert "핵심 이슈 4개" in prompt
+        assert "1500자" in prompt
+        assert "심층 분석" in prompt
+
+    def test_with_subtopics(self):
+        """Test with subtopics prioritization."""
+        prompt = build_topic_selector_prompt(subtopics=["진단 AI", "영상분석"])
+        assert "관심 영역 우선순위" in prompt
+        assert "진단 AI, 영상분석" in prompt
+        assert "우선 선정" in prompt
+        assert "관심 키워드" in prompt
+
+    def test_with_empty_subtopics(self):
+        """Test with empty subtopics list."""
+        prompt = build_topic_selector_prompt(subtopics=[])
+        # Should not include subtopic section if empty
+        assert "관심 영역 우선순위" not in prompt
+
+    def test_combined_context(self):
+        """Test with combined context."""
+        prompt = build_topic_selector_prompt(
+            difficulty="intermediate",
+            duration="long",
+            subtopics=["LangGraph", "에이전트"],
+        )
+        # Check difficulty
+        assert "중급자 중심" in prompt
+        assert "실전 적용" in prompt
+        # Check duration
+        assert "핵심 이슈 4개" in prompt
+        assert "1500자" in prompt
+        # Check subtopics
+        assert "LangGraph, 에이전트" in prompt
+        assert "관심 영역 우선순위" in prompt
+
+    def test_output_format_includes_all_topics(self):
+        """Test that output format includes correct number of topics."""
+        # Short (2 topics)
+        prompt = build_topic_selector_prompt(duration="short")
+        assert "**핵심 이슈 1**:" in prompt
+        assert "**핵심 이슈 2**:" in prompt
+        assert "**핵심 이슈 3**:" not in prompt
+
+        # Medium (3 topics)
+        prompt = build_topic_selector_prompt(duration="medium")
+        assert "**핵심 이슈 1**:" in prompt
+        assert "**핵심 이슈 2**:" in prompt
+        assert "**핵심 이슈 3**:" in prompt
+        assert "**핵심 이슈 4**:" not in prompt
+
+        # Long (4 topics)
+        prompt = build_topic_selector_prompt(duration="long")
+        assert "**핵심 이슈 1**:" in prompt
+        assert "**핵심 이슈 2**:" in prompt
+        assert "**핵심 이슈 3**:" in prompt
+        assert "**핵심 이슈 4**:" in prompt
+
+    def test_invalid_duration_defaults_to_medium(self):
+        """Test that invalid duration defaults to medium."""
+        prompt = build_topic_selector_prompt(duration="invalid")
+        # Should default to medium (3 topics)
+        assert "핵심 이슈 3개" in prompt
+        assert "800자" in prompt
+
+
+class TestCreateTopicSelectorSubagent:
+    """Test topic selector subagent creation."""
+
+    def test_default_agent_no_context(self):
+        """Test creating agent without context."""
+        agent = create_topic_selector_subagent()
+        assert agent["name"] == "topic-selector"
+        assert "3개 메인 토픽과 1개 스터디 카페" in agent["description"]
+        assert "tools" in agent
+        assert len(agent["tools"]) == 0  # No tools, reasoning only
+
+    def test_default_agent_none_context(self):
+        """Test creating agent with None context."""
+        agent = create_topic_selector_subagent(None)
+        assert agent["name"] == "topic-selector"
+        assert "3개 메인 토픽과 1개 스터디 카페" in agent["description"]
+
+    def test_personalized_agent_with_difficulty(self):
+        """Test creating personalized agent with difficulty."""
+        context = {"difficulty": "beginner"}
+        agent = create_topic_selector_subagent(context)
+        assert agent["name"] == "topic-selector"
+        assert "입문자 중심" in agent["system_prompt"]
+        # Default to medium duration (3 topics) if not specified
+        assert "3개의 핵심 이슈" in agent["description"]
+
+    def test_personalized_agent_with_short_duration(self):
+        """Test creating agent with short duration."""
+        context = {"duration": "short"}
+        agent = create_topic_selector_subagent(context)
+        assert "2개의 핵심 이슈" in agent["description"]
+        assert "핵심 이슈 2개" in agent["system_prompt"]
+
+    def test_personalized_agent_with_medium_duration(self):
+        """Test creating agent with medium duration."""
+        context = {"duration": "medium"}
+        agent = create_topic_selector_subagent(context)
+        assert "3개의 핵심 이슈" in agent["description"]
+        assert "핵심 이슈 3개" in agent["system_prompt"]
+
+    def test_personalized_agent_with_long_duration(self):
+        """Test creating agent with long duration."""
+        context = {"duration": "long"}
+        agent = create_topic_selector_subagent(context)
+        assert "4개의 핵심 이슈" in agent["description"]
+        assert "핵심 이슈 4개" in agent["system_prompt"]
+
+    def test_personalized_agent_with_subtopics(self):
+        """Test creating agent with subtopics."""
+        context = {"subtopics": ["RAG", "프롬프팅"]}
+        agent = create_topic_selector_subagent(context)
+        assert "RAG, 프롬프팅" in agent["system_prompt"]
+        assert "관심 영역 우선순위" in agent["system_prompt"]
+
+    def test_personalized_agent_full_context(self):
+        """Test creating agent with full context."""
+        context = {
+            "difficulty": "advanced",
+            "duration": "long",
+            "subtopics": ["Agent Architecture", "Tool Calling"],
+        }
+        agent = create_topic_selector_subagent(context)
+        # Check description
+        assert "4개의 핵심 이슈" in agent["description"]
+        # Check prompt includes all context
+        assert "고급자 중심" in agent["system_prompt"]
+        assert "핵심 이슈 4개" in agent["system_prompt"]
+        assert "Agent Architecture, Tool Calling" in agent["system_prompt"]
+        assert "1500자" in agent["system_prompt"]
+
+    def test_agent_has_no_tools(self):
+        """Test that topic selector has no tools (reasoning only)."""
+        context = {"difficulty": "intermediate"}
+        agent = create_topic_selector_subagent(context)
+        assert "tools" in agent
+        assert len(agent["tools"]) == 0
+
+    def test_invalid_duration_uses_default(self):
+        """Test that invalid duration falls back to default."""
+        context = {"duration": "invalid_value"}
+        agent = create_topic_selector_subagent(context)
+        # Should default to medium (3 topics)
+        assert "3개의 핵심 이슈" in agent["description"]
+
+    def test_empty_context_dict(self):
+        """Test with empty context dictionary."""
+        agent = create_topic_selector_subagent({})
+        # Should use default behavior
+        assert "3개 메인 토픽과 1개 스터디 카페" in agent["description"]

@@ -1,7 +1,6 @@
 """Shared pytest fixtures and configuration for API tests."""
 
 import pytest
-import os
 from unittest.mock import MagicMock
 from datetime import datetime
 
