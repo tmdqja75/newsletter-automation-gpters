@@ -2,10 +2,9 @@
 
 import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from datetime import datetime
+from unittest.mock import patch, MagicMock
 from .supabase_client import SupabaseClient, get_supabase_client
-from .models import NewsletterContext, UserAnswer, NewsletterContent
+from .models import NewsletterContext, NewsletterContent
 
 
 # =============================================================================

@@ -1,16 +1,14 @@
 """Newsletter generator with LangSmith integration."""
 
 import os
-import sys
 from typing import AsyncGenerator, Dict, Any
 from datetime import datetime
-from pathlib import Path
 
 from deepagents import create_deep_agent
 from langsmith import Client as LangSmithClient
 
 from ..config import ANTHROPIC_API_KEY, TAVILY_API_KEY
-from ..agents import create_research_subagent, topic_selection_agent, create_tone_editor_agent
+from ..agents import create_research_subagent, create_topic_selector_subagent, tone_agent
 from .models import (
     NewsletterContext,
     ProgressUpdate,
@@ -88,7 +86,7 @@ class NewsletterGenerator:
                     difficulty = answer.answer_text.lower()
 
             elif answer.question_type == "time":
-                # Extract duration preference
+                # Extract duration/reading time preference
                 if answer.answer_value and "value" in answer.answer_value:
                     duration = answer.answer_value["value"]
                 elif answer.answer_text:
@@ -105,6 +103,13 @@ class NewsletterGenerator:
             research_context["difficulty"] = difficulty or context.user_preferences.get("difficulty")
         if duration or context.user_preferences.get("duration"):
             research_context["duration"] = duration or context.user_preferences.get("duration")
+
+        # Add duration from user_preferences (preferred_length) if not in answers
+        if not duration and context.user_preferences.get("preferred_length"):
+            duration = context.user_preferences.get("preferred_length")
+
+        if duration:
+            research_context["duration"] = duration
 
         return research_context
 
@@ -241,17 +246,14 @@ class NewsletterGenerator:
             # Create personalized research agent
             research_agent = create_research_subagent(research_context)
 
-            # Create personalized tone editor agent
-            tone_editor = create_tone_editor_agent(
-                difficulty=research_context.get("difficulty"),
-                duration=research_context.get("duration"),
-            )
+            # Create personalized topic selector agent
+            topic_selector = create_topic_selector_subagent(research_context)
 
             # Create agent
             agent = create_deep_agent(
                 system_prompt="You are an expert research newsletter writer. Follow the user's instructions carefully and produce high-quality, well-researched content.",
                 tools=[],  # No tools needed, subagents have them
-                subagents=[research_agent, topic_selection_agent, tone_editor],
+                subagents=[research_agent, topic_selector, tone_agent],
             )
 
             # Configure LangSmith metadata
@@ -389,6 +391,8 @@ class NewsletterGenerator:
                 difficulty=research_context.get("difficulty"),
                 duration=research_context.get("duration"),
             )
+            # Create personalized topic selector agent
+            topic_selector = create_topic_selector_subagent(research_context)
 
             # Create agent
             agent = create_deep_agent(
