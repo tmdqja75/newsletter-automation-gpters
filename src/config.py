@@ -297,14 +297,15 @@ def normalize_duration(duration: str) -> str:
     """
     duration_lower = duration.lower()
 
-    if "3분" in duration_lower or "3min" in duration_lower or "빠른" in duration_lower or "요약" in duration_lower:
-        return "3min"
-    elif "5분" in duration_lower or "5min" in duration_lower or "핵심" in duration_lower:
-        return "5min"
+    # Check longer patterns first to avoid substring matching issues
+    if "15분" in duration_lower or "15min" in duration_lower or "깊이" in duration_lower or "분석" in duration_lower:
+        return "15min+"
     elif "10분" in duration_lower or "10min" in duration_lower or "상세" in duration_lower:
         return "10min"
-    elif "15분" in duration_lower or "15min" in duration_lower or "깊이" in duration_lower or "분석" in duration_lower:
-        return "15min+"
+    elif "5분" in duration_lower or "5min" in duration_lower or "핵심" in duration_lower:
+        return "5min"
+    elif "3분" in duration_lower or "3min" in duration_lower or "빠른" in duration_lower or "요약" in duration_lower:
+        return "3min"
 
     # Default to 5min
     return "5min"
