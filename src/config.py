@@ -218,6 +218,98 @@ TONE_EDITOR_PROMPT = """당신은 '오토마타' 뉴스레터의 에디터입니
 주어진 아티클을 위 가이드에 맞게 교정하되, 핵심 정보는 유지하세요.
 """
 
+# Difficulty-based tone configurations
+DIFFICULTY_TONE = {
+    "beginner": {
+        "term_explanation": "detailed",
+        "analogy_usage": "high",
+        "technical_depth": "low",
+    },
+    "intermediate": {
+        "term_explanation": "brief",
+        "analogy_usage": "medium",
+        "technical_depth": "medium",
+    },
+    "advanced": {
+        "term_explanation": "minimal",
+        "analogy_usage": "low",
+        "technical_depth": "high",
+    },
+}
+
+# Duration-based tone configurations
+DURATION_TONE = {
+    "3min": {
+        "section_detail": "concise",
+        "examples": 0,
+        "code_snippets": False,
+    },
+    "5min": {
+        "section_detail": "balanced",
+        "examples": 1,
+        "code_snippets": False,
+    },
+    "10min": {
+        "section_detail": "detailed",
+        "examples": 2,
+        "code_snippets": True,
+    },
+    "15min+": {
+        "section_detail": "comprehensive",
+        "examples": 3,
+        "code_snippets": True,
+    },
+}
+
+
+def normalize_difficulty(difficulty: str) -> str:
+    """
+    Normalize difficulty input to standard keys.
+
+    Args:
+        difficulty: Difficulty level in Korean or English
+
+    Returns:
+        Normalized difficulty: "beginner", "intermediate", or "advanced"
+    """
+    difficulty_lower = difficulty.lower()
+
+    if "초급" in difficulty_lower or "기본" in difficulty_lower or "beginner" in difficulty_lower:
+        return "beginner"
+    elif "중급" in difficulty_lower or "실무" in difficulty_lower or "intermediate" in difficulty_lower:
+        return "intermediate"
+    elif "고급" in difficulty_lower or "전문가" in difficulty_lower or "advanced" in difficulty_lower:
+        return "advanced"
+
+    # Default to intermediate
+    return "intermediate"
+
+
+def normalize_duration(duration: str) -> str:
+    """
+    Normalize duration input to standard keys.
+
+    Args:
+        duration: Reading duration preference in Korean or English
+
+    Returns:
+        Normalized duration: "3min", "5min", "10min", or "15min+"
+    """
+    duration_lower = duration.lower()
+
+    if "3분" in duration_lower or "3min" in duration_lower or "빠른" in duration_lower or "요약" in duration_lower:
+        return "3min"
+    elif "5분" in duration_lower or "5min" in duration_lower or "핵심" in duration_lower:
+        return "5min"
+    elif "10분" in duration_lower or "10min" in duration_lower or "상세" in duration_lower:
+        return "10min"
+    elif "15분" in duration_lower or "15min" in duration_lower or "깊이" in duration_lower or "분석" in duration_lower:
+        return "15min+"
+
+    # Default to 5min
+    return "5min"
+
+
 # Newsletter template
 NEWSLETTER_HEADER_TEMPLATE = """# Automata V.{version} | {main_title}
 

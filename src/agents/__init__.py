@@ -2,11 +2,12 @@
 
 from .research import research_subagent, create_research_subagent
 from .topic_selector import topic_selection_agent
-from .tone_editor import tone_agent
+from .tone_editor import tone_agent, create_tone_editor_agent
 
 __all__ = [
     "research_subagent",
     "create_research_subagent",
     "topic_selection_agent",
     "tone_agent",
+    "create_tone_editor_agent",
 ]
