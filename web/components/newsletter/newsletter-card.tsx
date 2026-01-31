@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { deleteNewsletter } from '@/lib/actions/newsletter';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import toast from 'react-hot-toast';
 
 interface NewsletterCardProps {
@@ -38,15 +39,12 @@ export function NewsletterCard({
   const isProcessing = status === 'processing';
   const isFailed = status === 'failed';
 
-  const statusColors = {
-    pending:
-      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300',
-    processing:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300',
-    completed:
-      'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300',
-    failed: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300',
-  };
+  const statusVariants = {
+    pending: 'warning',
+    processing: 'info',
+    completed: 'success',
+    failed: 'error',
+  } as const;
 
   const statusLabels = {
     pending: '대기 중',
@@ -86,25 +84,23 @@ export function NewsletterCard({
   // Generate thumbnail background gradient based on topic
   const getGradient = (topic: string) => {
     const gradients = [
-      'from-blue-400 to-blue-600',
-      'from-purple-400 to-purple-600',
-      'from-pink-400 to-pink-600',
-      'from-green-400 to-green-600',
-      'from-yellow-400 to-yellow-600',
-      'from-red-400 to-red-600',
+      'from-slate-700 to-indigo-900',
+      'from-emerald-700 to-teal-900',
+      'from-amber-700 to-orange-900',
+      'from-rose-700 to-pink-900',
     ];
     const index = topic.length % gradients.length;
     return gradients[index];
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
       {/* Thumbnail */}
       <div
         className={`h-32 bg-gradient-to-br ${getGradient(newsletter.user_topics.topic_text)} flex items-center justify-center`}
       >
         <div className="px-4 text-center text-white">
-          <h3 className="line-clamp-2 text-lg font-bold">
+          <h3 className="line-clamp-2 text-lg font-semibold tracking-tight">
             {newsletter.content.title}
           </h3>
         </div>
@@ -114,15 +110,14 @@ export function NewsletterCard({
       <div className="p-4">
         {/* Status Badge */}
         <div className="mb-3 flex items-center justify-between">
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              statusColors[status as keyof typeof statusColors] ||
-              statusColors.pending
-            }`}
+          <Badge
+            variant={
+              statusVariants[status as keyof typeof statusVariants] || 'warning'
+            }
           >
             {statusLabels[status as keyof typeof statusLabels] || '알 수 없음'}
-          </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          </Badge>
+          <span className="text-xs text-zinc-500 dark:text-zinc-500">
             {new Date(newsletter.created_at).toLocaleDateString('ko-KR', {
               month: 'short',
               day: 'numeric',
@@ -131,13 +126,13 @@ export function NewsletterCard({
         </div>
 
         {/* Topic */}
-        <p className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+        <p className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
           주제: {newsletter.user_topics.topic_text}
         </p>
 
         {/* Body Preview */}
         {isCompleted && (
-          <p className="mb-4 line-clamp-2 text-sm text-gray-700 dark:text-gray-300">
+          <p className="mb-4 line-clamp-2 text-sm text-zinc-700 dark:text-zinc-300">
             {newsletter.content.body.substring(0, 150)}...
           </p>
         )}

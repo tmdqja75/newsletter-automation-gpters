@@ -4,6 +4,22 @@ import userEvent from '@testing-library/user-event';
 import { TopicInput } from '@/components/topic-input';
 import toast from 'react-hot-toast';
 
+// Mock Next.js router
+const mockPush = vi.fn();
+const mockRefresh = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    refresh: mockRefresh,
+  }),
+}));
+
+// Mock server action - declare before using in factory
+vi.mock('@/lib/actions/topic', () => ({
+  createTopic: vi.fn(),
+}));
+
 vi.mock('react-hot-toast', () => ({
   default: {
     success: vi.fn(),
@@ -13,9 +29,17 @@ vi.mock('react-hot-toast', () => ({
 
 describe('TopicInput', () => {
   const mockOnChange = vi.fn();
+  let mockCreateTopic: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    mockPush.mockClear();
+    mockRefresh.mockClear();
+
+    // Get the mocked function
+    const topicActions = await import('@/lib/actions/topic');
+    mockCreateTopic = topicActions.createTopic as ReturnType<typeof vi.fn>;
+    mockCreateTopic.mockClear();
   });
 
   it('should render input field with placeholder', () => {
@@ -94,8 +118,14 @@ describe('TopicInput', () => {
     );
   });
 
-  it('should show success toast for valid input', async () => {
+  it('should navigate to questions page on successful submission', async () => {
     const user = userEvent.setup();
+    mockCreateTopic.mockResolvedValue({
+      success: true,
+      topicId: 'test-topic-id',
+      message: '주제가 생성되었습니다.',
+    });
+
     render(
       <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
     );
@@ -103,14 +133,21 @@ describe('TopicInput', () => {
     await user.click(screen.getByText('리서치 시작하기'));
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        '주제가 성공적으로 제출되었습니다!'
-      );
+      expect(mockPush).toHaveBeenCalledWith('/questions/test-topic-id');
     });
   });
 
   it('should show loading state during submission', async () => {
     const user = userEvent.setup();
+
+    // Create a promise that we can control
+    let resolveCreate: (value: any) => void;
+    const createPromise = new Promise((resolve) => {
+      resolveCreate = resolve;
+    });
+
+    mockCreateTopic.mockReturnValue(createPromise);
+
     render(
       <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
     );
@@ -118,15 +155,35 @@ describe('TopicInput', () => {
     const submitButton = screen.getByText('리서치 시작하기');
     await user.click(submitButton);
 
-    expect(screen.getByText('제출 중...')).toBeInTheDocument();
-
+    // Check loading state
     await waitFor(() => {
-      expect(screen.getByText('리서치 시작하기')).toBeInTheDocument();
+      expect(screen.getByText('제출 중...')).toBeInTheDocument();
+    });
+
+    // Resolve the promise
+    resolveCreate!({
+      success: true,
+      topicId: 'test-id',
+      message: 'Success',
+    });
+
+    // Wait for loading to finish
+    await waitFor(() => {
+      expect(screen.queryByText('제출 중...')).not.toBeInTheDocument();
     });
   });
 
   it('should disable input and button during submission', async () => {
     const user = userEvent.setup();
+
+    // Create a promise that we can control
+    let resolveCreate: (value: any) => void;
+    const createPromise = new Promise((resolve) => {
+      resolveCreate = resolve;
+    });
+
+    mockCreateTopic.mockReturnValue(createPromise);
+
     render(
       <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
     );
@@ -136,9 +193,20 @@ describe('TopicInput', () => {
 
     await user.click(submitButton);
 
-    expect(input).toBeDisabled();
-    expect(screen.getByText('제출 중...')).toBeDisabled();
+    // Check disabled state during submission
+    await waitFor(() => {
+      expect(input).toBeDisabled();
+      expect(screen.getByText('제출 중...')).toBeDisabled();
+    });
 
+    // Resolve the promise
+    resolveCreate!({
+      success: true,
+      topicId: 'test-id',
+      message: 'Success',
+    });
+
+    // Wait for elements to be enabled again
     await waitFor(() => {
       expect(input).not.toBeDisabled();
     });

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import toast from 'react-hot-toast';
 
 interface NewsletterShareProps {
@@ -53,15 +54,15 @@ export function NewsletterShare({ newsletterId, title }: NewsletterShareProps) {
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-      <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+    <Card>
+      <h3 className="mb-4 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
         공유하기
       </h3>
 
       <div className="space-y-4">
         {/* Copy Link */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             링크 복사
           </label>
           <div className="flex gap-2">
@@ -69,7 +70,7 @@ export function NewsletterShare({ newsletterId, title }: NewsletterShareProps) {
               type="text"
               value={shareUrl}
               readOnly
-              className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="flex-1 rounded-full border border-solid border-zinc-200 bg-zinc-50 px-6 py-3 text-sm text-zinc-950 outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
             />
             <Button onClick={handleCopyLink} variant="outline">
               {copied ? '복사됨!' : '복사'}
@@ -79,7 +80,7 @@ export function NewsletterShare({ newsletterId, title }: NewsletterShareProps) {
 
         {/* Social Share */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             소셜 미디어
           </label>
           <div className="flex gap-2">
@@ -134,10 +135,10 @@ export function NewsletterShare({ newsletterId, title }: NewsletterShareProps) {
           </div>
         </div>
 
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           이 링크를 공유하면 누구나 뉴스레터를 볼 수 있습니다.
         </p>
       </div>
-    </div>
+    </Card>
   );
 }
