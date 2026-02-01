@@ -101,6 +101,8 @@ class NewsletterGenerator:
             research_context["goal"] = goal
         if difficulty or context.user_preferences.get("difficulty"):
             research_context["difficulty"] = difficulty or context.user_preferences.get("difficulty")
+        if duration or context.user_preferences.get("duration"):
+            research_context["duration"] = duration or context.user_preferences.get("duration")
 
         # Add duration from user_preferences (preferred_length) if not in answers
         if not duration and context.user_preferences.get("preferred_length"):
@@ -384,6 +386,11 @@ class NewsletterGenerator:
             # Create personalized research agent
             research_agent = create_research_subagent(research_context)
 
+            # Create personalized tone editor agent
+            tone_editor = create_tone_editor_agent(
+                difficulty=research_context.get("difficulty"),
+                duration=research_context.get("duration"),
+            )
             # Create personalized topic selector agent
             topic_selector = create_topic_selector_subagent(research_context)
 
@@ -391,7 +398,7 @@ class NewsletterGenerator:
             agent = create_deep_agent(
                 system_prompt="You are an expert research newsletter writer. Follow the user's instructions carefully and produce high-quality, well-researched content.",
                 tools=[],
-                subagents=[research_agent, topic_selector, tone_agent],
+                subagents=[research_agent, topic_selection_agent, tone_editor],
             )
 
             config: Dict[str, Any] = {

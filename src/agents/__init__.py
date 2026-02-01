@@ -10,4 +10,5 @@ __all__ = [
     "topic_selection_agent",
     "create_topic_selector_subagent",
     "tone_agent",
+    "create_tone_editor_agent",
 ]
