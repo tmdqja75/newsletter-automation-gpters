@@ -36,7 +36,8 @@ async function testEmailSend() {
     userEmail: 'tmdqja75@gmail.com',
     topic: 'AI 에이전트 최신 동향',
     newsletterId: 'test-newsletter-123',
-    newsletterUrl: 'http://localhost:3000/newsletter/e696ee66-d179-491b-9b0d-cd657bac9996',
+    newsletterUrl:
+      'http://localhost:3000/newsletter/e696ee66-d179-491b-9b0d-cd657bac9996',
   };
 
   try {
@@ -71,7 +72,7 @@ async function testEmailSend() {
     console.log('✅ Email sent successfully!');
     console.log('📬 Email ID:', data?.id);
     console.log('\n💡 Check your inbox at tmdqja75@gmail.com');
-    console.log('   (Don\'t forget to check spam folder)');
+    console.log("   (Don't forget to check spam folder)");
   } catch (error) {
     console.error('❌ Unexpected error:', error);
     process.exit(1);

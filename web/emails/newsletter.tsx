@@ -12,15 +12,13 @@ import {
 
 interface NewsletterEmailProps {
   userEmail?: string;
-  topic: string;
-  newsletterId: string;
+  topic?: string;
+  newsletterId?: string;
   newsletterUrl: string;
 }
 
 export default function NewsletterEmail({
-  userEmail = 'user@example.com',
   topic = '예시 주제',
-  newsletterId,
   newsletterUrl,
 }: NewsletterEmailProps) {
   const previewText = `이번 주 ${topic}에 대한 뉴스레터가 완성되었어요`;
@@ -37,9 +35,7 @@ export default function NewsletterEmail({
             <Text style={text}>
               이번 주 <strong>{topic}</strong>에 대한 뉴스레터가 완성되었어요.
             </Text>
-            <Text style={text}>
-              아래 버튼을 눌러 읽을 수 있습니다.
-            </Text>
+            <Text style={text}>아래 버튼을 눌러 읽을 수 있습니다.</Text>
             <Section style={buttonContainer}>
               <Button style={button} href={newsletterUrl}>
                 뉴스레터 읽기
