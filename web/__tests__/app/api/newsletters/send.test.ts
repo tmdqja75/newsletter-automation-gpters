@@ -243,4 +243,232 @@ describe('POST /api/newsletters/[id]/send', () => {
     expect(response.status).toBe(500);
     expect(data.error).toBe('Email send failed');
   });
+
+  it('should reject if topic is 29 days old (exceeds limit)', async () => {
+    const { createClient } = await import('@/lib/supabase/server');
+
+    const twentyNineDaysAgo = new Date();
+    twentyNineDaysAgo.setDate(twentyNineDaysAgo.getDate() - 29);
+
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: mockUserId, email: mockUserEmail } },
+          error: null,
+        }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: mockNewsletterId,
+                  user_id: mockUserId,
+                  email_sent_at: null,
+                  user_topics: {
+                    topic_text: 'AI 에이전트',
+                    created_at: twentyNineDaysAgo.toISOString(),
+                  },
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+
+    (createClient as any).mockResolvedValue(mockSupabase);
+
+    const request = new NextRequest(
+      `https://example.com/api/newsletters/${mockNewsletterId}/send`,
+      { method: 'POST' }
+    );
+    const params = Promise.resolve({ id: mockNewsletterId });
+
+    const response = await POST(request, { params });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Time limit exceeded');
+    expect(data.message).toContain('4주를 초과');
+    expect(data.topicCreatedAt).toBe(twentyNineDaysAgo.toISOString());
+    expect(data.daysElapsed).toBe(29);
+  });
+
+  it('should allow if topic is exactly 28 days old (boundary)', async () => {
+    const { createClient } = await import('@/lib/supabase/server');
+    const { sendNewsletterEmail } = await import('@/lib/email/resend');
+
+    const twentyEightDaysAgo = new Date();
+    twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: mockUserId, email: mockUserEmail } },
+          error: null,
+        }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: mockNewsletterId,
+                  user_id: mockUserId,
+                  email_sent_at: null,
+                  user_topics: {
+                    topic_text: 'AI 에이전트',
+                    created_at: twentyEightDaysAgo.toISOString(),
+                  },
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+        insert: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    };
+
+    (createClient as any).mockResolvedValue(mockSupabase);
+    (sendNewsletterEmail as any).mockResolvedValue({
+      success: true,
+      id: 'email-123',
+    });
+
+    const request = new NextRequest(
+      `https://example.com/api/newsletters/${mockNewsletterId}/send`,
+      { method: 'POST' }
+    );
+    const params = Promise.resolve({ id: mockNewsletterId });
+
+    const response = await POST(request, { params });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+  });
+
+  it('should allow if topic is 27 days old (within limit)', async () => {
+    const { createClient } = await import('@/lib/supabase/server');
+    const { sendNewsletterEmail } = await import('@/lib/email/resend');
+
+    const twentySevenDaysAgo = new Date();
+    twentySevenDaysAgo.setDate(twentySevenDaysAgo.getDate() - 27);
+
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: mockUserId, email: mockUserEmail } },
+          error: null,
+        }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: mockNewsletterId,
+                  user_id: mockUserId,
+                  email_sent_at: null,
+                  user_topics: {
+                    topic_text: 'AI 에이전트',
+                    created_at: twentySevenDaysAgo.toISOString(),
+                  },
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+        insert: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    };
+
+    (createClient as any).mockResolvedValue(mockSupabase);
+    (sendNewsletterEmail as any).mockResolvedValue({
+      success: true,
+      id: 'email-123',
+    });
+
+    const request = new NextRequest(
+      `https://example.com/api/newsletters/${mockNewsletterId}/send`,
+      { method: 'POST' }
+    );
+    const params = Promise.resolve({ id: mockNewsletterId });
+
+    const response = await POST(request, { params });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+  });
+
+  it('should reject if topic is 28 days + 1 second old (just over)', async () => {
+    const { createClient } = await import('@/lib/supabase/server');
+
+    const twentyEightDaysAndOneSecondAgo = new Date();
+    twentyEightDaysAndOneSecondAgo.setDate(
+      twentyEightDaysAndOneSecondAgo.getDate() - 28
+    );
+    twentyEightDaysAndOneSecondAgo.setSeconds(
+      twentyEightDaysAndOneSecondAgo.getSeconds() - 1
+    );
+
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: mockUserId, email: mockUserEmail } },
+          error: null,
+        }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: mockNewsletterId,
+                  user_id: mockUserId,
+                  email_sent_at: null,
+                  user_topics: {
+                    topic_text: 'AI 에이전트',
+                    created_at: twentyEightDaysAndOneSecondAgo.toISOString(),
+                  },
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+
+    (createClient as any).mockResolvedValue(mockSupabase);
+
+    const request = new NextRequest(
+      `https://example.com/api/newsletters/${mockNewsletterId}/send`,
+      { method: 'POST' }
+    );
+    const params = Promise.resolve({ id: mockNewsletterId });
+
+    const response = await POST(request, { params });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Time limit exceeded');
+    expect(data.message).toContain('4주를 초과');
+    expect(data.daysElapsed).toBeGreaterThanOrEqual(28);
+  });
 });

@@ -8,6 +8,7 @@ const mockEq = vi.fn();
 const mockSingle = vi.fn();
 const mockFrom = vi.fn();
 const mockGetUser = vi.fn();
+const mockGte = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => ({
@@ -39,6 +40,12 @@ describe('Topic Actions', () => {
     mockEq.mockReturnValue({
       single: mockSingle,
       eq: mockEq,
+      gte: mockGte,
+    });
+
+    mockGte.mockResolvedValue({
+      data: [],
+      error: null,
     });
 
     // Default mockInsert behavior - returns object with both error (for direct use) and select method (for chaining)
@@ -198,6 +205,170 @@ describe('Topic Actions', () => {
       expect(result.message).toBe(
         '주제 생성에 실패했습니다. 다시 시도해주세요.'
       );
+    });
+  });
+
+  describe('Rate limiting', () => {
+    it('should allow topic creation with 0 existing topics', async () => {
+      const mockUser = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        email: 'test@example.com',
+        email_confirmed_at: new Date().toISOString(),
+      };
+
+      mockGetUser.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+
+      // Mock existing user check
+      mockSingle.mockResolvedValueOnce({
+        data: { id: mockUser.id },
+        error: null,
+      });
+
+      // Mock rate limit check - 0 existing topics
+      mockGte.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      });
+
+      // Mock topic creation
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          topic_text: 'AI 에이전트 최신 동향',
+        },
+        error: null,
+      });
+
+      const formData = new FormData();
+      formData.append('topic', 'AI 에이전트 최신 동향');
+
+      const result = await createTopic(formData);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('주제가 생성되었습니다.');
+    });
+
+    it('should allow topic creation with 1 existing topic', async () => {
+      const mockUser = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        email: 'test@example.com',
+        email_confirmed_at: new Date().toISOString(),
+      };
+
+      mockGetUser.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+
+      // Mock existing user check
+      mockSingle.mockResolvedValueOnce({
+        data: { id: mockUser.id },
+        error: null,
+      });
+
+      // Mock rate limit check - 1 existing topic
+      mockGte.mockResolvedValueOnce({
+        data: [{ id: '550e8400-e29b-41d4-a716-446655440099' }],
+        error: null,
+      });
+
+      // Mock topic creation
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          topic_text: 'AI 에이전트 최신 동향',
+        },
+        error: null,
+      });
+
+      const formData = new FormData();
+      formData.append('topic', 'AI 에이전트 최신 동향');
+
+      const result = await createTopic(formData);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('주제가 생성되었습니다.');
+    });
+
+    it('should reject topic creation with 2 existing topics (at limit)', async () => {
+      const mockUser = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        email: 'test@example.com',
+        email_confirmed_at: new Date().toISOString(),
+      };
+
+      mockGetUser.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+
+      // Mock existing user check
+      mockSingle.mockResolvedValueOnce({
+        data: { id: mockUser.id },
+        error: null,
+      });
+
+      // Mock rate limit check - 2 existing topics
+      mockGte.mockResolvedValueOnce({
+        data: [
+          { id: '550e8400-e29b-41d4-a716-446655440098' },
+          { id: '550e8400-e29b-41d4-a716-446655440099' },
+        ],
+        error: null,
+      });
+
+      const formData = new FormData();
+      formData.append('topic', 'AI 에이전트 최신 동향');
+
+      const result = await createTopic(formData);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('주당 최대 2개의 주제만 생성할 수 있습니다.');
+    });
+
+    it('should allow topic creation if rate limit check fails (fail open)', async () => {
+      const mockUser = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        email: 'test@example.com',
+        email_confirmed_at: new Date().toISOString(),
+      };
+
+      mockGetUser.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+
+      // Mock existing user check
+      mockSingle.mockResolvedValueOnce({
+        data: { id: mockUser.id },
+        error: null,
+      });
+
+      // Mock rate limit check - database error (fail open)
+      mockGte.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Database error' },
+      });
+
+      // Mock topic creation
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          topic_text: 'AI 에이전트 최신 동향',
+        },
+        error: null,
+      });
+
+      const formData = new FormData();
+      formData.append('topic', 'AI 에이전트 최신 동향');
+
+      const result = await createTopic(formData);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('주제가 생성되었습니다.');
     });
   });
 
