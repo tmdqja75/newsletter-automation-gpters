@@ -1,21 +1,22 @@
-"use client";
+'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 
 export function OrbInput() {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [displayedText, setDisplayedText] = useState("");
+  const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
 
   // Keep the placeholders stable across renders
   const placeholders = useMemo(
     () => [
-      "Ask anything...",
+      'Ask anything...',
       "What's on your mind?",
-      "How can I help you?",
-      "What would you like to know?",
+      'How can I help you?',
+      'What would you like to know?',
     ],
     []
   );
@@ -41,23 +42,22 @@ export function OrbInput() {
 
     const current = placeholders[placeholderIndex];
     if (!current) {
-      setDisplayedText("");
-      setIsTyping(false);
       return;
     }
 
     const chars = Array.from(current);
-
-    // reset state for a new round
-    setDisplayedText("");
-    setIsTyping(true);
-
     let charIndex = 0;
+
+    // Use requestAnimationFrame to avoid setState during effect initialization
+    requestAnimationFrame(() => {
+      setDisplayedText('');
+      setIsTyping(true);
+    });
 
     // type character-by-character using a derived slice to avoid any chance of appending undefined
     intervalRef.current = window.setInterval(() => {
       if (charIndex < chars.length) {
-        const next = chars.slice(0, charIndex + 1).join("");
+        const next = chars.slice(0, charIndex + 1).join('');
         setDisplayedText(next);
         charIndex += 1;
       } else {
@@ -90,23 +90,26 @@ export function OrbInput() {
   return (
     <div className="relative">
       <div
-        className={`flex items-center gap-4 p-6 bg-black shadow-lg transition-all duration-300 ease-out rounded-full border border-gray-300 ${
-          isFocused ? "shadow-xl scale-[1.02] border-gray-600" : "shadow-lg"
+        className={`flex items-center gap-4 rounded-full border border-gray-300 bg-black p-6 shadow-lg transition-all duration-300 ease-out ${
+          isFocused ? 'scale-[1.02] border-gray-600 shadow-xl' : 'shadow-lg'
         }`}
       >
         <div className="relative flex-shrink-0">
-          <div className="w-16 h-16 rounded-full overflow-hidden transition-all duration-300 scale-100">
-            <img
+          <div className="h-16 w-16 scale-100 overflow-hidden rounded-full transition-all duration-300">
+            <Image
               src="https://media.giphy.com/media/26gsuUjoEBmLrNBxC/giphy.gif"
               alt="Animated orb"
-              className="w-full h-full object-cover"
+              width={64}
+              height={64}
+              className="h-full w-full object-cover"
+              unoptimized
             />
           </div>
         </div>
 
-        <div className="w-px h-12 bg-gray-600" />
+        <div className="h-12 w-px bg-gray-600" />
 
-        <div className="flex-1 w-[500px]">
+        <div className="w-[500px] flex-1">
           <input
             data-testid="orb-input"
             type="text"
@@ -114,9 +117,9 @@ export function OrbInput() {
             onChange={(e) => setValue(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={`${displayedText}${isTyping ? "|" : ""}`}
+            placeholder={`${displayedText}${isTyping ? '|' : ''}`}
             aria-label="Ask a question"
-            className="w-full text-xl text-white placeholder-gray-400 bg-transparent border-none outline-none font-light"
+            className="w-full border-none bg-transparent text-xl font-light text-white placeholder-gray-400 outline-none"
           />
         </div>
       </div>
