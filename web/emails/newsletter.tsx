@@ -56,7 +56,7 @@ export default function NewsletterEmail({
 }
 
 const main = {
-  backgroundColor: '#ffffff',
+  backgroundColor: '#f9fafb',
   fontFamily:
     '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
 };
@@ -68,10 +68,11 @@ const container = {
 };
 
 const section = {
-  padding: '24px',
+  padding: '32px',
   border: '1px solid #e5e7eb',
-  borderRadius: '8px',
+  borderRadius: '12px',
   backgroundColor: '#ffffff',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
 };
 
 const h1 = {
@@ -84,7 +85,7 @@ const h1 = {
 };
 
 const text = {
-  color: '#374151',
+  color: '#1f2937',
   fontSize: '16px',
   lineHeight: '1.6',
   margin: '0 0 16px',
