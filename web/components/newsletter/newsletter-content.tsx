@@ -15,6 +15,8 @@ interface NewsletterContentProps {
 }
 
 export function NewsletterContent({ content }: NewsletterContentProps) {
+  const normalizedBody = normalizeMarkdown(content.body);
+
   return (
     <article className="prose prose-zinc dark:prose-invert max-w-none">
       {/* Title */}
@@ -33,6 +35,25 @@ export function NewsletterContent({ content }: NewsletterContentProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          hr() {
+            return <hr className="my-8 border-zinc-200 dark:border-zinc-800" />;
+          },
+          h2(props) {
+            return (
+              <h2
+                className="mt-8 scroll-m-20 text-2xl font-semibold text-zinc-950 dark:text-zinc-50"
+                {...props}
+              />
+            );
+          },
+          h3(props) {
+            return (
+              <h3
+                className="mt-6 scroll-m-20 text-xl font-semibold text-zinc-950 dark:text-zinc-50"
+                {...props}
+              />
+            );
+          },
           code(props) {
             const { inline, className, children, ...rest } = props as any;
             const match = /language-(\w+)/.exec(className || '');
@@ -56,8 +77,25 @@ export function NewsletterContent({ content }: NewsletterContentProps) {
           },
         }}
       >
-        {content.body}
+        {normalizedBody}
       </ReactMarkdown>
     </article>
   );
+}
+
+function normalizeMarkdown(body: string) {
+  if (!body) {
+    return '';
+  }
+
+  let normalized = body.replace(/\r\n/g, '\n');
+
+  // If the markdown was stored with escaped newlines, decode them.
+  if (normalized.includes('\\n')) {
+    normalized = normalized
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n');
+  }
+
+  return normalized;
 }
