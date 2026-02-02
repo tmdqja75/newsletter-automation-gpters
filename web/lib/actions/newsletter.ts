@@ -409,3 +409,58 @@ export async function getNewsletterForPublicView(newsletterId: string) {
     newsletter: transformedNewsletter,
   };
 }
+
+interface SendNewsletterEmailResult {
+  success: boolean;
+  message: string;
+  emailId?: string;
+  sentAt?: string;
+}
+
+/**
+ * Send newsletter email to user.
+ *
+ * @param newsletterId - Newsletter UUID
+ * @returns Result with success status and email ID
+ */
+export async function sendNewsletterEmail(
+  newsletterId: string
+): Promise<SendNewsletterEmailResult> {
+  try {
+    // Get site URL for API endpoint
+    const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+    // Call API endpoint to send email
+    const response = await fetch(
+      `${siteUrl}/api/newsletters/${newsletterId}/send`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || '이메일 발송에 실패했습니다.',
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || '이메일이 성공적으로 발송되었습니다.',
+      emailId: data.emailId,
+      sentAt: data.sentAt,
+    };
+  } catch (error) {
+    console.error('Error sending newsletter email:', error);
+    return {
+      success: false,
+      message: '이메일 발송 중 오류가 발생했습니다.',
+    };
+  }
+}
