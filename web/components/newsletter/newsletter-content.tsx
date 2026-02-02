@@ -92,9 +92,7 @@ function normalizeMarkdown(body: string) {
 
   // If the markdown was stored with escaped newlines, decode them.
   if (normalized.includes('\\n')) {
-    normalized = normalized
-      .replace(/\\r\\n/g, '\n')
-      .replace(/\\n/g, '\n');
+    normalized = normalized.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
   }
 
   return normalized;
