@@ -14,6 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
+# Note: web/lib is allowed (see web-specific exceptions at bottom)
 lib/
 lib64/
 parts/
@@ -51,4 +52,22 @@ Thumbs.db
 
 # Project specific
 articles/**/draft_*
-.claude/
+
+# Next.js
+web/.next/
+web/out/
+web/.env*.local
+web/.env.local
+web/.vercel
+
+# Node.js
+web/node_modules/
+node_modules/
+
+# Vercel
+.vercel
+
+# Exceptions (must be at the end)
+# Allow Next.js source code in web/lib and test files
+!web/lib/
+!web/__tests__/lib/

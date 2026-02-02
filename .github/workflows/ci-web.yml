@@ -1,0 +1,51 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci-web.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'web/**'
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npx prettier --check .
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          # Dummy environment variables for CI build
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key-for-ci-build-only
+          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key-for-ci-build-only
+          RESEND_API_KEY: re_dummy_api_key_for_ci_build_only
+          API_SECRET_KEY: dummy-api-secret-key-minimum-32-characters-long-for-ci

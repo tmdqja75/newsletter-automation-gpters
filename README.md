@@ -39,3 +39,40 @@ uv run python run.py --merge 2026-01-15
 # 개발 의존성 포함 설치
 uv sync --all-extras
 ```
+
+## Web Application Setup
+
+### Prerequisites
+- Node.js 20+
+- npm or yarn
+
+### Installation
+
+1. Install Next.js dependencies:
+```bash
+cd web
+npm install
+```
+
+2. Configure environment variables:
+```bash
+cp web/.env.example web/.env.local
+# Edit web/.env.local with your actual API keys
+```
+
+3. Run development server:
+```bash
+cd web
+npm run dev
+```
+
+Visit http://localhost:3000
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npx prettier --check .` - Check formatting
+- `npx prettier --write .` - Format code
