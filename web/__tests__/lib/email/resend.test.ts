@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sendNewsletterEmail } from '@/lib/email/resend';
+
+// Mock send function factory
+const createMockSend = () => vi.fn();
+let mockSend = createMockSend();
 
 // Mock Resend
-vi.mock('resend', () => ({
-  Resend: vi.fn().mockImplementation(() => ({
-    emails: {
-      send: vi.fn(),
-    },
-  })),
-}));
+vi.mock('resend', () => {
+  return {
+    Resend: vi.fn().mockImplementation(function (this: any) {
+      this.emails = {
+        get send() {
+          return mockSend;
+        },
+      };
+    }),
+  };
+});
 
 // Mock React Email render
 vi.mock('@react-email/render', () => ({
@@ -22,23 +29,20 @@ vi.mock('@/lib/env', () => ({
   },
 }));
 
+// Import after mocks are set up
+import { sendNewsletterEmail } from '@/lib/email/resend';
+
 describe('sendNewsletterEmail', () => {
   beforeEach(() => {
+    mockSend = createMockSend();
     vi.clearAllMocks();
   });
 
   it('should send email successfully', async () => {
-    const { Resend } = await import('resend');
-    const mockSend = vi.fn().mockResolvedValue({
+    mockSend.mockResolvedValue({
       data: { id: 'email-123' },
       error: null,
     });
-
-    (Resend as any).mockImplementation(() => ({
-      emails: {
-        send: mockSend,
-      },
-    }));
 
     const result = await sendNewsletterEmail({
       userEmail: 'user@example.com',
@@ -59,17 +63,10 @@ describe('sendNewsletterEmail', () => {
   });
 
   it('should handle Resend API error', async () => {
-    const { Resend } = await import('resend');
-    const mockSend = vi.fn().mockResolvedValue({
+    mockSend.mockResolvedValue({
       data: null,
       error: { message: 'API error' },
     });
-
-    (Resend as any).mockImplementation(() => ({
-      emails: {
-        send: mockSend,
-      },
-    }));
 
     const result = await sendNewsletterEmail({
       userEmail: 'user@example.com',
@@ -84,17 +81,10 @@ describe('sendNewsletterEmail', () => {
   });
 
   it('should handle missing email ID in response', async () => {
-    const { Resend } = await import('resend');
-    const mockSend = vi.fn().mockResolvedValue({
+    mockSend.mockResolvedValue({
       data: {},
       error: null,
     });
-
-    (Resend as any).mockImplementation(() => ({
-      emails: {
-        send: mockSend,
-      },
-    }));
 
     const result = await sendNewsletterEmail({
       userEmail: 'user@example.com',
@@ -108,14 +98,7 @@ describe('sendNewsletterEmail', () => {
   });
 
   it('should handle thrown errors', async () => {
-    const { Resend } = await import('resend');
-    const mockSend = vi.fn().mockRejectedValue(new Error('Network error'));
-
-    (Resend as any).mockImplementation(() => ({
-      emails: {
-        send: mockSend,
-      },
-    }));
+    mockSend.mockRejectedValue(new Error('Network error'));
 
     const result = await sendNewsletterEmail({
       userEmail: 'user@example.com',
@@ -129,14 +112,7 @@ describe('sendNewsletterEmail', () => {
   });
 
   it('should handle non-Error thrown values', async () => {
-    const { Resend } = await import('resend');
-    const mockSend = vi.fn().mockRejectedValue('String error');
-
-    (Resend as any).mockImplementation(() => ({
-      emails: {
-        send: mockSend,
-      },
-    }));
+    mockSend.mockRejectedValue('String error');
 
     const result = await sendNewsletterEmail({
       userEmail: 'user@example.com',

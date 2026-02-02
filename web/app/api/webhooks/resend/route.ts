@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     // Extract user agent and IP from headers if available
     const userAgent = request.headers.get('user-agent');
-    const ip = request.headers.get('x-forwarded-for') || request.ip;
+    const ip = request.headers.get('x-forwarded-for') || null;
 
     // Insert new event
     const { error: insertError } = await supabase.from('email_events').insert({

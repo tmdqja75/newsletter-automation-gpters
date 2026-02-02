@@ -25,7 +25,7 @@ export async function sendNewsletterEmail(
   data: NewsletterEmailData
 ): Promise<SendEmailResult> {
   try {
-    const emailHtml = render(
+    const emailHtml = await render(
       NewsletterEmail({
         userEmail: data.userEmail,
         topic: data.topic,
