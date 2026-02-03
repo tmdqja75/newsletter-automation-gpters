@@ -36,6 +36,7 @@ export function NewsletterCard({
 
   const status = newsletter.status;
   const isCompleted = status === 'completed';
+  const isPendingStatus = status === 'pending';
   const isProcessing = status === 'processing';
   const isFailed = status === 'failed';
 
@@ -47,7 +48,7 @@ export function NewsletterCard({
   } as const;
 
   const statusLabels = {
-    pending: '대기 중',
+    pending: '리서치중...',
     processing: '생성 중',
     completed: '완료',
     failed: '실패',
@@ -189,10 +190,12 @@ export function NewsletterCard({
             </>
           )}
 
-          {isProcessing && (
+          {(isPendingStatus || isProcessing) && (
             <div className="flex flex-1 items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-              <span className="text-sm">생성 중...</span>
+              <span className="text-sm">
+                {isPendingStatus ? '리서치중...' : '생성 중...'}
+              </span>
             </div>
           )}
 

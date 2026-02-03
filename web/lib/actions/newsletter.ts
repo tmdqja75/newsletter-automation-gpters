@@ -218,7 +218,7 @@ export async function getUserNewsletters(
       { count: 'exact' }
     )
     .eq('user_id', user.id)
-    .in('status', ['completed', 'processing']); // Only show completed and processing
+    .in('status', ['pending', 'processing', 'completed']); // Include pending for scheduled newsletters
 
   // Apply filters
   if (topicId) {
