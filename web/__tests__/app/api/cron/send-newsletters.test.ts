@@ -42,7 +42,10 @@ function newslettersPhase1(unsent: { id: string }[] = []) {
 /**
  * user_preferences SELECT chain (Phase 2, first query).
  */
-function preferencesChain(data: { user_id: string }[] | null, error = null) {
+function preferencesChain(
+  data: { user_id: string }[] | null,
+  error: { message: string } | null = null
+) {
   return {
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -59,7 +62,7 @@ function preferencesChain(data: { user_id: string }[] | null, error = null) {
  */
 function topicsChain(
   data: { id: string; user_id: string }[] | null,
-  error = null
+  error: { message: string } | null = null
 ) {
   return {
     select: vi.fn().mockReturnValue({

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { env } from '@/lib/env';
+import { sendUnsentNewsletter } from '@/lib/email/send-newsletter';
 
 interface GenerateNewsletterResult {
   success: boolean;
@@ -420,6 +421,10 @@ interface SendNewsletterEmailResult {
 /**
  * Send newsletter email to user.
  *
+ * Uses the admin client via sendUnsentNewsletter so this works correctly
+ * from any server context (server actions, cron, etc.) without needing
+ * the user's auth cookies.
+ *
  * @param newsletterId - Newsletter UUID
  * @returns Result with success status and email ID
  */
@@ -427,34 +432,29 @@ export async function sendNewsletterEmail(
   newsletterId: string
 ): Promise<SendNewsletterEmailResult> {
   try {
-    // Get site URL for API endpoint
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const result = await sendUnsentNewsletter(newsletterId);
 
-    // Call API endpoint to send email
-    const response = await fetch(
-      `${siteUrl}/api/newsletters/${newsletterId}/send`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    if (result.alreadySent) {
+      return {
+        success: true,
+        message: '이미 발송된 뉴스레터입니다.',
+        emailId: undefined,
+        sentAt: undefined,
+      };
+    }
 
-    const data = await response.json();
-
-    if (!response.ok) {
+    if (!result.success) {
       return {
         success: false,
-        message: data.message || '이메일 발송에 실패했습니다.',
+        message: result.error || '이메일 발송에 실패했습니다.',
       };
     }
 
     return {
       success: true,
-      message: data.message || '이메일이 성공적으로 발송되었습니다.',
-      emailId: data.emailId,
-      sentAt: data.sentAt,
+      message: '이메일이 성공적으로 발송되었습니다.',
+      emailId: result.emailId,
+      sentAt: new Date().toISOString(),
     };
   } catch (error) {
     console.error('Error sending newsletter email:', error);

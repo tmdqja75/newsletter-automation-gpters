@@ -275,16 +275,18 @@ export default function QuestionsPage() {
                         `/api/newsletters/${newsletterId}/send`,
                         { method: 'POST' }
                       );
-                      if (
-                        sendRes.ok ||
-                        (sendRes.status === 400 &&
-                          (await sendRes.json()).error === 'Already sent')
-                      ) {
+                      const sendData = await sendRes.json();
+
+                      if (sendRes.ok || sendData.error === 'Already sent') {
                         toast.success('이메일이 발송되었습니다!');
                       } else {
-                        toast.error('이메일 발송에 실패했습니다.');
+                        console.error('Email send failed:', sendData);
+                        toast.error(
+                          sendData.message || '이메일 발송에 실패했습니다.'
+                        );
                       }
-                    } catch {
+                    } catch (err) {
+                      console.error('Email send error:', err);
                       toast.error('이메일 발송에 실패했습니다.');
                     }
 
