@@ -68,7 +68,15 @@ export const defaultQuestions: DefaultQuestion[] = [
   {
     question_text: '뉴스레터를 매주 받고 싶은 요일을 선택해주세요',
     question_type: 'delivery_day',
-    options: ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'],
+    options: [
+      '월요일',
+      '화요일',
+      '수요일',
+      '목요일',
+      '금요일',
+      '토요일',
+      '일요일',
+    ],
     display_order: 7,
     is_required: true,
   },

@@ -45,7 +45,7 @@ describe('TopicInput', () => {
   it('should render input field with placeholder', () => {
     render(<TopicInput value="" onChange={mockOnChange} />);
 
-    const input = screen.getByPlaceholderText('어떤 주제로 리서치해 드릴까요?');
+    const input = screen.getByTestId('topic-input');
     expect(input).toBeInTheDocument();
   });
 
@@ -76,7 +76,7 @@ describe('TopicInput', () => {
     const user = userEvent.setup();
     render(<TopicInput value="" onChange={mockOnChange} />);
 
-    const input = screen.getByPlaceholderText('어떤 주제로 리서치해 드릴까요?');
+    const input = screen.getByTestId('topic-input');
     await user.type(input, 'AI 에이전트');
 
     expect(mockOnChange).toHaveBeenCalled();
@@ -188,7 +188,7 @@ describe('TopicInput', () => {
       <TopicInput value="AI 에이전트 최신 동향" onChange={mockOnChange} />
     );
 
-    const input = screen.getByPlaceholderText('어떤 주제로 리서치해 드릴까요?');
+    const input = screen.getByTestId('topic-input');
     const submitButton = screen.getByText('리서치 시작하기');
 
     await user.click(submitButton);
@@ -215,9 +215,7 @@ describe('TopicInput', () => {
   it('should enforce max length of 100 characters', () => {
     render(<TopicInput value="" onChange={mockOnChange} />);
 
-    const input = screen.getByPlaceholderText(
-      '어떤 주제로 리서치해 드릴까요?'
-    ) as HTMLInputElement;
+    const input = screen.getByTestId('topic-input') as HTMLInputElement;
     expect(input.maxLength).toBe(100);
   });
 

@@ -23,9 +23,7 @@ describe('GET /api/cron/send-newsletters', () => {
   const makeRequest = (authToken?: string) =>
     new Request('http://localhost:3000/api/cron/send-newsletters', {
       method: 'GET',
-      headers: authToken
-        ? { authorization: `Bearer ${authToken}` }
-        : {},
+      headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
     });
 
   it('should return 401 without authorization header', async () => {

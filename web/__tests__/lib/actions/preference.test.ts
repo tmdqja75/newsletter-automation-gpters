@@ -28,7 +28,9 @@ describe('saveDeliveryPreference', () => {
     });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
-    mockUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    mockUpdate.mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
   });
 
   it('should return error when not authenticated', async () => {
@@ -103,7 +105,9 @@ describe('saveDeliveryPreference', () => {
     });
     mockMaybeSingle.mockResolvedValue({ data: { id: 'pref-1' } });
 
-    const mockUpdateEq = vi.fn().mockResolvedValue({ error: { message: 'DB error' } });
+    const mockUpdateEq = vi
+      .fn()
+      .mockResolvedValue({ error: { message: 'DB error' } });
     mockUpdate.mockReturnValue({ eq: mockUpdateEq });
 
     const result = await saveDeliveryPreference('금요일');
@@ -135,13 +139,13 @@ describe('saveDeliveryPreference', () => {
     mockInsert.mockResolvedValue({ error: null });
 
     const dayMap: Record<string, number> = {
-      '월요일': 1,
-      '화요일': 2,
-      '수요일': 3,
-      '목요일': 4,
-      '금요일': 5,
-      '토요일': 6,
-      '일요일': 0,
+      월요일: 1,
+      화요일: 2,
+      수요일: 3,
+      목요일: 4,
+      금요일: 5,
+      토요일: 6,
+      일요일: 0,
     };
 
     for (const [dayName, expectedInt] of Object.entries(dayMap)) {

@@ -339,7 +339,10 @@ describe('Question Validation Schemas', () => {
 
     it('should validate generate_now checkbox answer', () => {
       const question = createQuestion('generate_now', false);
-      const answer: Answer = { type: 'checkbox', value: ['지금 바로 생성하기'] };
+      const answer: Answer = {
+        type: 'checkbox',
+        value: ['지금 바로 생성하기'],
+      };
       const result = validateAnswerForQuestion(question, answer, false);
       expect(result.valid).toBe(true);
     });
@@ -366,7 +369,15 @@ describe('Question Validation Schemas', () => {
         topic_id: '550e8400-e29b-41d4-a716-446655440001',
         question_text: '뉴스레터를 매주 받고 싶은 요일을 선택해주세요',
         question_type: 'delivery_day' as const,
-        options: ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'],
+        options: [
+          '월요일',
+          '화요일',
+          '수요일',
+          '목요일',
+          '금요일',
+          '토요일',
+          '일요일',
+        ],
         display_order: 7,
         is_required: true,
       };

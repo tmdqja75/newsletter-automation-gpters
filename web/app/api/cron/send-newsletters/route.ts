@@ -45,33 +45,26 @@ export async function GET(request: Request) {
 
   if (topicsError) {
     console.error('Error fetching topics:', topicsError);
-    return Response.json(
-      { error: 'Failed to fetch topics' },
-      { status: 500 }
-    );
+    return Response.json({ error: 'Failed to fetch topics' }, { status: 500 });
   }
 
   if (!topics || topics.length === 0) {
     return Response.json({ message: 'No active topics found' });
   }
 
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   // Trigger generation for each user's topic
   const results = await Promise.allSettled(
     topics.map(async (topic) => {
-      const response = await fetch(
-        `${apiUrl}/api/newsletter/generate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: topic.user_id,
-            topic_id: topic.id,
-          }),
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/newsletter/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: topic.user_id,
+          topic_id: topic.id,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(
