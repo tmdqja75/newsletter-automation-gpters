@@ -8,7 +8,7 @@ from deepagents import create_deep_agent
 from langsmith import Client as LangSmithClient
 
 from ..config import ANTHROPIC_API_KEY, TAVILY_API_KEY
-from ..agents import create_research_subagent, create_topic_selector_subagent, tone_agent
+from ..agents import create_research_subagent, create_topic_selector_subagent, create_tone_editor_agent
 from .models import (
     NewsletterContext,
     ProgressUpdate,
@@ -249,11 +249,17 @@ class NewsletterGenerator:
             # Create personalized topic selector agent
             topic_selector = create_topic_selector_subagent(research_context)
 
+            # Create personalized tone editor agent
+            tone_editor = create_tone_editor_agent(
+                difficulty=research_context.get("difficulty"),
+                duration=research_context.get("duration"),
+            )
+
             # Create agent
             agent = create_deep_agent(
                 system_prompt="You are an expert research newsletter writer. Follow the user's instructions carefully and produce high-quality, well-researched content.",
                 tools=[],  # No tools needed, subagents have them
-                subagents=[research_agent, topic_selector, tone_agent],
+                subagents=[research_agent, topic_selector, tone_editor],
             )
 
             # Configure LangSmith metadata
@@ -398,7 +404,7 @@ class NewsletterGenerator:
             agent = create_deep_agent(
                 system_prompt="You are an expert research newsletter writer. Follow the user's instructions carefully and produce high-quality, well-researched content.",
                 tools=[],
-                subagents=[research_agent, topic_selection_agent, tone_editor],
+                subagents=[research_agent, topic_selector, tone_editor],
             )
 
             config: Dict[str, Any] = {
