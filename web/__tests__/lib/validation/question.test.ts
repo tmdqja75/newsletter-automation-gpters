@@ -252,6 +252,14 @@ describe('Question Validation Schemas', () => {
     it('should return text for custom question', () => {
       expect(getAnswerTypeFromQuestionType('custom')).toBe('text');
     });
+
+    it('should return radio for delivery_day question', () => {
+      expect(getAnswerTypeFromQuestionType('delivery_day')).toBe('radio');
+    });
+
+    it('should return checkbox for generate_now question', () => {
+      expect(getAnswerTypeFromQuestionType('generate_now')).toBe('checkbox');
+    });
   });
 
   describe('validateAnswerForQuestion', () => {
@@ -313,6 +321,73 @@ describe('Question Validation Schemas', () => {
       const result = validateAnswerForQuestion(question, undefined, false);
       expect(result.valid).toBe(false);
       expect(result.error).toBe('필수 질문입니다');
+    });
+
+    it('should validate delivery_day radio answer', () => {
+      const question = createQuestion('delivery_day', true);
+      const answer: Answer = { type: 'radio', value: '월요일' };
+      const result = validateAnswerForQuestion(question, answer, false);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject delivery_day without answer (required)', () => {
+      const question = createQuestion('delivery_day', true);
+      const result = validateAnswerForQuestion(question, undefined, false);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('필수 질문입니다');
+    });
+
+    it('should validate generate_now checkbox answer', () => {
+      const question = createQuestion('generate_now', false);
+      const answer: Answer = { type: 'checkbox', value: ['지금 바로 생성하기'] };
+      const result = validateAnswerForQuestion(question, answer, false);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should validate generate_now when skipped (not required)', () => {
+      const question = createQuestion('generate_now', false);
+      const result = validateAnswerForQuestion(question, undefined, true);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject generate_now with mismatched radio answer type', () => {
+      const question = createQuestion('generate_now', false);
+      const answer: Answer = { type: 'radio', value: '지금 바로 생성하기' };
+      const result = validateAnswerForQuestion(question, answer, false);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('답변 형식이 올바르지 않습니다');
+    });
+  });
+
+  describe('questionSchema with new types', () => {
+    it('should validate delivery_day question type', () => {
+      const question = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        topic_id: '550e8400-e29b-41d4-a716-446655440001',
+        question_text: '뉴스레터를 매주 받고 싶은 요일을 선택해주세요',
+        question_type: 'delivery_day' as const,
+        options: ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'],
+        display_order: 7,
+        is_required: true,
+      };
+
+      const result = questionSchema.safeParse(question);
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate generate_now question type', () => {
+      const question = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        topic_id: '550e8400-e29b-41d4-a716-446655440001',
+        question_text: '지금 바로 생성하고 싶으신가요?',
+        question_type: 'generate_now' as const,
+        options: ['지금 바로 생성하기'],
+        display_order: 8,
+        is_required: false,
+      };
+
+      const result = questionSchema.safeParse(question);
+      expect(result.success).toBe(true);
     });
   });
 });
