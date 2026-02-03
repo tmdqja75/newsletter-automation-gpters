@@ -266,8 +266,29 @@ export default function QuestionsPage() {
                   setGenerationMessage(data.message);
 
                   if (data.step === 'complete' && data.details?.newsletter_id) {
-                    toast.success('뉴스레터가 생성되었습니다! 확인하세요.');
-                    router.push(`/newsletter/${data.details.newsletter_id}`);
+                    const newsletterId = data.details.newsletter_id;
+
+                    // Send email before redirecting
+                    setGenerationMessage('이메일 발송 중...');
+                    try {
+                      const sendRes = await fetch(
+                        `/api/newsletters/${newsletterId}/send`,
+                        { method: 'POST' }
+                      );
+                      if (
+                        sendRes.ok ||
+                        (sendRes.status === 400 &&
+                          (await sendRes.json()).error === 'Already sent')
+                      ) {
+                        toast.success('이메일이 발송되었습니다!');
+                      } else {
+                        toast.error('이메일 발송에 실패했습니다.');
+                      }
+                    } catch {
+                      toast.error('이메일 발송에 실패했습니다.');
+                    }
+
+                    router.push(`/newsletter/${newsletterId}`);
                     return;
                   } else if (data.step === 'error') {
                     toast.error(data.message);

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { sendUnsentNewsletter } from '@/lib/email/send-newsletter';
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -8,6 +9,38 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient();
 
+  // --- Phase 1: Send any published newsletters that haven't been emailed yet ---
+  const { data: unsent } = await supabase
+    .from('newsletters')
+    .select('id')
+    .eq('is_published', true)
+    .is('email_sent_at', null);
+
+  let emailSent = 0;
+  let emailAlreadySent = 0;
+  let emailFailed = 0;
+
+  if (unsent && unsent.length > 0) {
+    const sendResults = await Promise.allSettled(
+      unsent.map((n: { id: string }) => sendUnsentNewsletter(n.id))
+    );
+
+    for (const result of sendResults) {
+      if (result.status === 'fulfilled') {
+        if (result.value.success) {
+          emailSent++;
+        } else if (result.value.alreadySent) {
+          emailAlreadySent++;
+        } else {
+          emailFailed++;
+        }
+      } else {
+        emailFailed++;
+      }
+    }
+  }
+
+  // --- Phase 2: Trigger generation for users scheduled for tomorrow ---
   // Calculate tomorrow's day of week (0=Sun, 1=Mon, ..., 6=Sat)
   const today = new Date();
   const tomorrow = new Date(today);
@@ -31,7 +64,14 @@ export async function GET(request: Request) {
   }
 
   if (!preferences || preferences.length === 0) {
-    return Response.json({ message: 'No users scheduled for tomorrow' });
+    return Response.json({
+      message: 'No users scheduled for tomorrow',
+      emails: {
+        sent: emailSent,
+        alreadySent: emailAlreadySent,
+        failed: emailFailed,
+      },
+    });
   }
 
   const userIds = preferences.map((p) => p.user_id);
@@ -49,7 +89,14 @@ export async function GET(request: Request) {
   }
 
   if (!topics || topics.length === 0) {
-    return Response.json({ message: 'No active topics found' });
+    return Response.json({
+      message: 'No active topics found',
+      emails: {
+        sent: emailSent,
+        alreadySent: emailAlreadySent,
+        failed: emailFailed,
+      },
+    });
   }
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -81,6 +128,11 @@ export async function GET(request: Request) {
 
   return Response.json({
     message: 'Cron completed',
+    emails: {
+      sent: emailSent,
+      alreadySent: emailAlreadySent,
+      failed: emailFailed,
+    },
     scheduled_day: tomorrowDayOfWeek,
     users_found: userIds.length,
     topics_triggered: topics.length,
