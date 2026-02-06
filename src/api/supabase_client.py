@@ -208,7 +208,7 @@ class SupabaseClient:
             "body": content.body,
             "word_count": content.word_count,
             "estimated_reading_time": content.estimated_reading_time,
-            "is_published": False,  # Not published yet
+            "is_published": True,
             "created_at": datetime.utcnow().isoformat(),
         }
 

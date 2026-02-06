@@ -9,7 +9,9 @@ export interface DefaultQuestion {
     | 'scope'
     | 'time'
     | 'source'
-    | 'subtopic';
+    | 'subtopic'
+    | 'delivery_day'
+    | 'generate_now';
   options: string[];
   display_order: number;
   is_required: boolean;
@@ -61,6 +63,28 @@ export const defaultQuestions: DefaultQuestion[] = [
     question_type: 'subtopic',
     options: [],
     display_order: 6,
+    is_required: false,
+  },
+  {
+    question_text: '뉴스레터를 매주 받고 싶은 요일을 선택해주세요',
+    question_type: 'delivery_day',
+    options: [
+      '월요일',
+      '화요일',
+      '수요일',
+      '목요일',
+      '금요일',
+      '토요일',
+      '일요일',
+    ],
+    display_order: 7,
+    is_required: true,
+  },
+  {
+    question_text: '지금 바로 생성하고 싶으신가요?',
+    question_type: 'generate_now',
+    options: ['지금 바로 생성하기'],
+    display_order: 8,
     is_required: false,
   },
 ];

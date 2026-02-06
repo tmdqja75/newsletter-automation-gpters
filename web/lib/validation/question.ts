@@ -9,6 +9,8 @@ export const questionTypeEnum = z.enum([
   'source',
   'subtopic',
   'custom',
+  'delivery_day',
+  'generate_now',
 ]);
 
 // Base question schema
@@ -92,9 +94,11 @@ export function getAnswerTypeFromQuestionType(
     case 'goal':
     case 'difficulty':
     case 'time':
+    case 'delivery_day':
       return 'radio';
     case 'source':
     case 'scope':
+    case 'generate_now':
       return 'checkbox';
     case 'subtopic':
     case 'custom':

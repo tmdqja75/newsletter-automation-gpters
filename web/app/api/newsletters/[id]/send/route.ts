@@ -94,7 +94,7 @@ export async function POST(
 
     // Construct newsletter URL
     const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const newsletterUrl = `${siteUrl}/newsletters/${newsletter.id}`;
+    const newsletterUrl = `${siteUrl}/newsletter/${newsletter.id}`;
 
     // Send email via Resend
     const emailResult = await sendNewsletterEmail({

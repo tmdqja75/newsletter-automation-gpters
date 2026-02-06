@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { AuthStatus } from '@/components/auth/auth-status';
 import { getQuestionsByTopicId, saveAnswers } from '@/lib/actions/question';
 import { getTopicById } from '@/lib/actions/topic';
+import { saveDeliveryPreference } from '@/lib/actions/preference';
 import { env } from '@/lib/env';
 import { createClient } from '@/lib/supabase/client';
 import type { Question, Answer } from '@/lib/validation/question';
@@ -37,6 +38,8 @@ export default function QuestionsPage() {
   const [generating, setGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState('');
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledDay, setScheduledDay] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -175,9 +178,41 @@ export default function QuestionsPage() {
           return;
         }
 
-        toast.success('답변이 저장되었습니다! 리서치를 시작합니다.');
+        toast.success('답변이 저장되었습니다!');
 
-        // Get current user
+        // Extract delivery preference answers
+        const deliveryDayState = questionStates.find(
+          (s) => s.question.question_type === 'delivery_day'
+        );
+        const generateNowState = questionStates.find(
+          (s) => s.question.question_type === 'generate_now'
+        );
+
+        const selectedDay =
+          deliveryDayState?.answer?.type === 'radio'
+            ? deliveryDayState.answer.value
+            : null;
+        const shouldGenerateNow =
+          generateNowState?.answer?.type === 'checkbox' &&
+          generateNowState.answer.value.includes('지금 바로 생성하기');
+
+        // Save delivery preference regardless of generate_now
+        if (selectedDay) {
+          const prefResult = await saveDeliveryPreference(selectedDay);
+          if (!prefResult.success) {
+            toast.error(prefResult.message);
+            return;
+          }
+        }
+
+        if (!shouldGenerateNow) {
+          // Scheduled flow: show confirmation screen
+          setScheduledDay(selectedDay || '');
+          setScheduled(true);
+          return;
+        }
+
+        // Immediate generation flow (SSE streaming)
         const supabase = createClient();
         const {
           data: { user },
@@ -188,12 +223,10 @@ export default function QuestionsPage() {
           return;
         }
 
-        // Start newsletter generation with SSE streaming
         setGenerating(true);
         setGenerationProgress(0);
         setGenerationMessage('리서치를 준비하는 중...');
 
-        // Use fetch for SSE streaming
         const apiUrl = env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
         try {
@@ -233,9 +266,31 @@ export default function QuestionsPage() {
                   setGenerationMessage(data.message);
 
                   if (data.step === 'complete' && data.details?.newsletter_id) {
-                    // Generation complete, redirect to newsletter view
-                    toast.success('뉴스레터가 생성되었습니다! 확인하세요.');
-                    router.push(`/newsletter/${data.details.newsletter_id}`);
+                    const newsletterId = data.details.newsletter_id;
+
+                    // Send email before redirecting
+                    setGenerationMessage('이메일 발송 중...');
+                    try {
+                      const sendRes = await fetch(
+                        `/api/newsletters/${newsletterId}/send`,
+                        { method: 'POST' }
+                      );
+                      const sendData = await sendRes.json();
+
+                      if (sendRes.ok || sendData.error === 'Already sent') {
+                        toast.success('이메일이 발송되었습니다!');
+                      } else {
+                        console.error('Email send failed:', sendData);
+                        toast.error(
+                          sendData.message || '이메일 발송에 실패했습니다.'
+                        );
+                      }
+                    } catch (err) {
+                      console.error('Email send error:', err);
+                      toast.error('이메일 발송에 실패했습니다.');
+                    }
+
+                    router.push(`/newsletter/${newsletterId}`);
                     return;
                   } else if (data.step === 'error') {
                     toast.error(data.message);
@@ -264,6 +319,64 @@ export default function QuestionsPage() {
   const totalCount = questionStates.length;
   const progressPercentage =
     totalCount > 0 ? (answeredCount / totalCount) * 100 : 0;
+
+  useEffect(() => {
+    if (!scheduled) return;
+    const timer = setTimeout(() => {
+      router.push('/dashboard');
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [scheduled, router]);
+
+  if (scheduled) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-black">
+        <Container className="text-center" maxWidth="md">
+          <div className="mb-8">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+              <svg
+                className="h-8 w-8 text-blue-600 dark:text-blue-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <h2 className="mb-3 text-3xl font-bold text-zinc-950 sm:text-4xl dark:text-zinc-50">
+              예약 완료!
+            </h2>
+            <p className="text-lg text-zinc-600 dark:text-zinc-400">
+              매주{' '}
+              <span className="font-semibold text-zinc-950 dark:text-zinc-50">
+                {scheduledDay}
+              </span>
+              마다 뉴스레터를 배송해 드릴게요!
+            </p>
+          </div>
+
+          <p className="mb-8 text-sm text-zinc-500 dark:text-zinc-400">
+            발송 시간은 오전 9시로 고정됩니다.
+            <br />
+            잠시 후 대시보드로 이동합니다...
+          </p>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push('/dashboard')}
+          >
+            대시보드로 이동
+          </Button>
+        </Container>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

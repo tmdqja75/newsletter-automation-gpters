@@ -1,0 +1,86 @@
+---
+title: Newsletter Email Flow — from 제출하기 to Inbox
+---
+sequenceDiagram
+    autonumber
+    participant Browser as Browser<br/>(questions/[topicId]/page.tsx)
+    participant NextAPI as Next.js API Route<br/>(app/api/newsletters/[id]/send)
+    participant Action as Server Action<br/>(lib/actions/newsletter.ts)
+    participant SendUtil as sendUnsentNewsletter()<br/>(lib/email/send-newsletter.ts)
+    participant Resend as sendNewsletterEmail()<br/>(lib/email/resend.ts)
+    participant ResendAPI as Resend API<br/>(External)
+    participant FastAPI as FastAPI<br/>(api/main.py — /generate/stream)
+    participant Generator as NewsletterGenerator<br/>(src/api/newsletter_generator.py)
+    participant DB as Supabase<br/>(PostgreSQL)
+    participant Inbox as User's Email Inbox
+
+    rect rgb(230, 240, 255)
+        Note over Browser,DB: Phase 1 — Answer Submission & Preference Save
+        Browser->>+Action: saveAnswers(topicId, answers)
+        Action->>+DB: INSERT answers INTO user_answers
+        DB-->>-Action: OK
+        Action-->>-Browser: { success: true }
+
+        Browser->>+Action: saveDeliveryPreference(selectedDay)
+        Action->>+DB: UPSERT delivery_preferences
+        DB-->>-Action: OK
+        Action-->>-Browser: { success: true }
+    end
+
+    rect rgb(230, 255, 230)
+        Note over Browser,DB: Phase 2 — Newsletter Generation (SSE Streaming)
+        Browser->>+FastAPI: POST /api/newsletter/generate/stream<br/>{ user_id, topic_id }
+        FastAPI->>+Generator: generate_newsletter_stream(user_id, topic_id)
+
+        Generator->>+DB: create_newsletter_request() — status: pending
+        DB-->>-Generator: request_id
+        Generator->>+DB: update_request_status() — status: processing
+        DB-->>-Generator: OK
+
+        Generator->>+DB: get_topic_and_answers(topic_id)
+        DB-->>-Generator: topic + personalization answers
+
+        Note over Generator: Run LangGraph deep agents<br/>(research → topic_selector → tone_editor)
+        Generator->>Generator: Research agent collects news (Tavily / HN)
+        Generator->>Generator: Topic selector picks themes
+        Generator->>Generator: Tone editor refines to Automata style
+
+        Generator->>+DB: save_newsletter() — is_published: true
+        DB-->>-Generator: newsletter_id
+        Generator->>+DB: update_request_status() — status: completed
+        DB-->>-Generator: OK
+
+        Generator-->>-FastAPI: SSE event { step: "complete", newsletter_id }
+        FastAPI-->>-Browser: SSE event { step: "complete", newsletter_id }
+    end
+
+    rect rgb(255, 240, 220)
+        Note over Browser,DB: Phase 3 — Trigger Email Send
+        Browser->>+NextAPI: POST /api/newsletters/{newsletterId}/send
+        NextAPI->>+DB: Verify auth (supabase.auth.getUser)
+        DB-->>-NextAPI: user session
+        NextAPI->>+DB: SELECT newsletter JOIN user_topics<br/>WHERE id = newsletterId AND user_id = user.id
+        DB-->>-NextAPI: newsletter record + topic_text
+
+        NextAPI->>NextAPI: Guard checks:<br/>— already sent? (email_sent_at IS NULL)<br/>— topic within 4-week window?
+    end
+
+    rect rgb(255, 230, 230)
+        Note over NextAPI,Inbox: Phase 4 — Email Delivery via Resend
+        NextAPI->>+Resend: sendNewsletterEmail()<br/>{ userEmail, topic, newsletterId, newsletterUrl }
+        Resend->>Resend: render(NewsletterEmail) — React Email template
+        Resend->>+ResendAPI: resend.emails.send()<br/>from: newsletter@automata.com<br/>to: user email<br/>subject: 이번 주 {topic}에 대한 뉴스레터가 완성되었어요
+        ResendAPI-->>-Resend: { id: emailId }
+        Resend-->>-NextAPI: { success: true, id: emailId }
+
+        NextAPI->>+DB: UPDATE newsletters SET email_sent_at = now()
+        DB-->>-NextAPI: OK
+        NextAPI->>+DB: INSERT email_events (event_type: sent,<br/>email_provider: resend, email_provider_id: emailId)
+        DB-->>-NextAPI: OK
+        NextAPI-->>Browser: { success: true, emailId, sentAt }
+
+        ResendAPI-->>Inbox: Email delivered
+    end
+
+    Browser->>Browser: toast.success('이메일이 발송되었습니다!')
+    Browser->>Browser: router.push(/newsletter/{newsletterId})

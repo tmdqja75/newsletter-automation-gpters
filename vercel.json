@@ -15,5 +15,11 @@
       "src": "/api/(.*)",
       "dest": "api/main.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/send-newsletters",
+      "schedule": "0 0 * * *"
+    }
   ]
 }
