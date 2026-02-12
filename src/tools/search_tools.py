@@ -3,6 +3,7 @@
 import os
 import json
 import httpx
+from datetime import datetime, timedelta
 from tavily import TavilyClient
 
 
@@ -22,11 +23,15 @@ def search_ai_news(query: str, max_results: int = 10) -> str:
 
     client = TavilyClient(api_key=api_key)
 
+    # Calculate date from 2 weeks ago for filtering recent content
+    two_weeks_ago = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+
     try:
         response = client.search(
             query=query,
             search_depth="advanced",
             max_results=max_results,
+            start_date=two_weeks_ago,  # Filter for content from last 2 weeks
             include_domains=[
                 "anthropic.com",
                 "openai.com",
