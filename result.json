@@ -1,0 +1,120 @@
+{
+  "publication_date": "2026-02-12",
+  "date_range": {
+    "start": "2026-02-05",
+    "end": "2026-02-12"
+  },
+  "posts": {
+    "openai": [
+      {
+        "source": "openai",
+        "title": "Harness engineering: leveraging Codex in an agent-first world",
+        "url": "https://openai.com/index/harness-engineering",
+        "date": "2026-02-11",
+        "category": "Engineering",
+        "description": "By Ryan Lopopolo, Member of the Technical Staff"
+      },
+      {
+        "source": "openai",
+        "title": "Bringing ChatGPT to GenAI.mil",
+        "url": "https://openai.com/index/bringing-chatgpt-to-genaimil",
+        "date": "2026-02-09",
+        "category": "Global Affairs",
+        "description": "OpenAI for Government announces the deployment of a custom ChatGPT on GenAI.mil, bringing secure, safety-forward AI to U.S. defense teams."
+      },
+      {
+        "source": "openai",
+        "title": "Testing ads in ChatGPT",
+        "url": "https://openai.com/index/testing-ads-in-chatgpt",
+        "date": "2026-02-09",
+        "category": "Company",
+        "description": "OpenAI begins testing ads in ChatGPT to support free access, with clear labeling, answer independence, strong privacy protections, and user control."
+      },
+      {
+        "source": "openai",
+        "title": "Making AI work for everyone, everywhere: our approach to localization",
+        "url": "https://openai.com/index/our-approach-to-localization",
+        "date": "2026-02-06",
+        "category": "Global Affairs",
+        "description": "OpenAI shares its approach to AI localization, showing how globally shared frontier models can be adapted to local languages, laws, and cultures without compromising safety."
+      },
+      {
+        "source": "openai",
+        "title": "GPT-5 lowers the cost of cell-free protein synthesis",
+        "url": "https://openai.com/index/gpt-5-lowers-protein-synthesis-cost",
+        "date": "2026-02-05",
+        "category": "Research",
+        "description": "An autonomous lab combining OpenAI’s GPT-5 with Ginkgo Bioworks’ cloud automation cut cell-free protein synthesis costs by 40% through closed-loop experimentation."
+      },
+      {
+        "source": "openai",
+        "title": "Introducing Trusted Access for Cyber",
+        "url": "https://openai.com/index/trusted-access-for-cyber",
+        "date": "2026-02-05",
+        "category": "Security",
+        "description": "OpenAI introduces Trusted Access for Cyber, a trust-based framework that expands access to frontier cyber capabilities while strengthening safeguards against misuse."
+      },
+      {
+        "source": "openai",
+        "title": "Introducing OpenAI Frontier",
+        "url": "https://openai.com/index/introducing-openai-frontier",
+        "date": "2026-02-05",
+        "category": "Product",
+        "description": "OpenAI Frontier is an enterprise platform for building, deploying, and managing AI agents with shared context, onboarding, permissions, and governance."
+      },
+      {
+        "source": "openai",
+        "title": "Navigating health questions with ChatGPT",
+        "url": "https://openai.com/index/navigating-health-questions",
+        "date": "2026-02-05",
+        "category": "ChatGPT",
+        "description": "A family shares how ChatGPT helped them prepare for critical cancer treatment decisions for their son alongside expert guidance from his doctors."
+      },
+      {
+        "source": "openai",
+        "title": "GPT-5.3-Codex System Card",
+        "url": "https://openai.com/index/gpt-5-3-codex-system-card",
+        "date": "2026-02-05",
+        "category": "Publication",
+        "description": "GPT‑5.3-Codex is the most capable agentic coding model to date, combining the frontier coding performance of GPT‑5.2-Codex with the reasoning and professional knowledge capabilities of GPT‑5.2. "
+      },
+      {
+        "source": "openai",
+        "title": "Introducing GPT-5.3-Codex",
+        "url": "https://openai.com/index/introducing-gpt-5-3-codex",
+        "date": "2026-02-05",
+        "category": "Product",
+        "description": "GPT-5.3-Codex is a Codex-native agent that pairs frontier coding performance with general reasoning to support long-horizon, real-world technical work."
+      }
+    ],
+    "anthropic": [
+      {
+        "source": "anthropic",
+        "title": "Introducing Claude Opus 4.6",
+        "url": "https://www.anthropic.com/news/claude-opus-4-6",
+        "date": "2026-02-05",
+        "category": "Announcements",
+        "description": "We’re upgrading our smartest model. Across agentic coding, computer use, tool use, search, and finance, Opus 4.6 is an industry-leading model, often by wide margin."
+      },
+      {
+        "source": "anthropic",
+        "title": "Covering electricity price increases from our data centers",
+        "url": "https://www.anthropic.com/news/covering-electricity-price-increases",
+        "date": "2026-02-11",
+        "category": "Policy",
+        "description": ""
+      }
+    ],
+    "deepmind": [
+      {
+        "source": "deepmind",
+        "title": "Accelerating Mathematical and Scientific Discovery with Gemini Deep Think",
+        "url": "https://deepmind.google/blog/accelerating-mathematical-and-scientific-discovery-with-gemini-deep-think/",
+        "date": "2026-02-09",
+        "category": "",
+        "description": "Research papers point to the growing impact of Deep Think across fields"
+      }
+    ]
+  },
+  "total_count": 13
+}
