@@ -33,10 +33,6 @@ def search_ai_news(query: str, max_results: int = 10) -> str:
             max_results=max_results,
             start_date=two_weeks_ago,  # Filter for content from last 2 weeks
             include_domains=[
-                "anthropic.com",
-                "openai.com",
-                "ai.google",
-                "blog.google",
                 "huggingface.co",
                 "arxiv.org",
                 "techcrunch.com",
@@ -44,6 +40,11 @@ def search_ai_news(query: str, max_results: int = 10) -> str:
                 "venturebeat.com",
                 "wired.com",
                 "arstechnica.com",
+            ],
+            exclude_domains=[
+                "openai.com",
+                "anthropic.com",
+                "deepmind.google",
             ],
         )
 

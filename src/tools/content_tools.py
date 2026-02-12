@@ -1,6 +1,10 @@
 """Content extraction and analysis tools."""
 
 import json
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
+
 import httpx
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
@@ -94,71 +98,212 @@ def fetch_article_content(url: str) -> str:
         return json.dumps({"error": str(e), "url": url})
 
 
-def analyze_tech_blog(url: str) -> str:
-    """Analyze a tech blog post and extract key insights.
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
-    Specialized for tech company blogs (Anthropic, OpenAI, Google).
 
-    Args:
-        url: URL of the tech blog post
+def _parse_rss_date(text: str) -> datetime | None:
+    """Parse RFC 2822 date from RSS feeds (e.g. 'Wed, 11 Feb 2026 09:00:00 GMT')."""
+    try:
+        return parsedate_to_datetime(text).replace(tzinfo=None)
+    except Exception:
+        return None
 
-    Returns:
-        JSON string with structured analysis including key points and summary
+
+def _parse_html_date(text: str) -> datetime | None:
+    """Parse date strings found in HTML (e.g. 'Feb 5, 2026')."""
+    text = text.strip()
+    for fmt in ("%b %d, %Y", "%B %d, %Y", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _fetch_rss_posts(
+    client: httpx.Client,
+    rss_url: str,
+    source: str,
+    base_url: str,
+    start: datetime,
+    end: datetime,
+) -> list[dict]:
+    """Fetch posts from an RSS feed filtered by date range.
+
+    Works for both OpenAI (/news/rss.xml) and DeepMind (/blog/rss.xml).
     """
-    # First fetch the content
-    content_result = fetch_article_content(url)
-    content_data = json.loads(content_result)
+    resp = client.get(rss_url, headers=_HEADERS)
+    resp.raise_for_status()
 
-    if "error" in content_data:
-        return content_result
+    root = ET.fromstring(resp.text)
+    posts = []
 
-    domain = content_data.get("domain", "")
-    title = content_data.get("title", "")
-    content = content_data.get("content", "")
+    for item in root.findall(".//item"):
+        pub_date_text = item.findtext("pubDate", "")
+        dt = _parse_rss_date(pub_date_text)
+        if not dt or not (start <= dt <= end):
+            continue
 
-    # Identify blog type
-    blog_type = "unknown"
-    if "anthropic.com" in domain:
-        blog_type = "anthropic"
-    elif "openai.com" in domain:
-        blog_type = "openai"
-    elif "google" in domain or "deepmind" in domain:
-        blog_type = "google"
-    elif "huggingface.co" in domain:
-        blog_type = "huggingface"
+        link = item.findtext("link", "")
+        if not link.startswith("http"):
+            link = base_url + link
 
-    # Extract sections (basic heuristic)
-    sections = []
-    current_section = {"heading": "Introduction", "content": []}
-
-    for line in content.split("\n"):
-        # Simple heading detection
-        if len(line) < 100 and line.isupper():
-            if current_section["content"]:
-                sections.append(current_section)
-            current_section = {"heading": line, "content": []}
-        else:
-            current_section["content"].append(line)
-
-    if current_section["content"]:
-        sections.append(current_section)
-
-    # Format sections
-    formatted_sections = []
-    for section in sections[:10]:  # Limit to 10 sections
-        formatted_sections.append({
-            "heading": section["heading"],
-            "preview": "\n".join(section["content"][:5]),
+        posts.append({
+            "source": source,
+            "title": item.findtext("title", ""),
+            "url": link,
+            "date": dt.strftime("%Y-%m-%d"),
+            "category": item.findtext("category", ""),
+            "description": item.findtext("description", ""),
         })
 
-    return json.dumps(
-        {
-            "url": url,
-            "blog_type": blog_type,
+    return posts
+
+
+def _fetch_anthropic_posts(
+    client: httpx.Client, start: datetime, end: datetime
+) -> list[dict]:
+    """Scrape Anthropic news page for posts in the date range.
+
+    Anthropic has no RSS feed. The /news page contains an <article> with
+    <a href="/news/..."> links, each with <time>Feb 5, 2026</time>, titles
+    in h2/h4/span, and categories in span elements.
+    """
+    resp = client.get("https://www.anthropic.com/news", headers=_HEADERS)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    seen_urls: set[str] = set()
+    posts = []
+    article = soup.find("article")
+    if not article:
+        return posts
+
+    for link in article.find_all("a", href=True):
+        href = link["href"]
+        if not href.startswith("/news/") and href != "/mars":
+            continue
+        if href in seen_urls:
+            continue
+
+        time_el = link.find("time")
+        if not time_el:
+            continue
+        dt = _parse_html_date(time_el.get_text(strip=True))
+        if not dt or not (start <= dt <= end):
+            continue
+
+        seen_urls.add(href)
+
+        # Title from h2, h4, or last span
+        title_el = link.find("h2") or link.find("h4")
+        spans = link.find_all("span")
+        if title_el:
+            title = title_el.get_text(strip=True)
+        elif spans:
+            title = spans[-1].get_text(strip=True)
+        else:
+            title = ""
+
+        # Category from first span that isn't the title
+        category = ""
+        for s in spans:
+            txt = s.get_text(strip=True)
+            if txt != title and not s.find("time"):
+                category = txt
+                break
+
+        description = ""
+        p_el = link.find("p")
+        if p_el:
+            description = p_el.get_text(strip=True)
+
+        posts.append({
+            "source": "anthropic",
             "title": title,
-            "sections": formatted_sections,
-            "full_content_length": len(content),
+            "url": "https://www.anthropic.com" + href,
+            "date": dt.strftime("%Y-%m-%d"),
+            "category": category,
+            "description": description,
+        })
+
+    return posts
+
+
+def fetch_official_blog_posts(publication_date: str) -> str:
+    """Fetch recent blog posts from OpenAI, Anthropic, and Google DeepMind.
+
+    Uses RSS feeds for OpenAI and DeepMind, and HTML scraping for Anthropic
+    (which has no RSS feed). Returns posts published between 7 days before
+    the publication date and the publication date itself.
+
+    Args:
+        publication_date: Newsletter publication date in YYYY-MM-DD format
+            (e.g. "2026-02-12")
+
+    Returns:
+        JSON string containing blog posts grouped by source, with title, URL,
+        date, and category for each post.
+    """
+    pub_date = datetime.strptime(publication_date, "%Y-%m-%d")
+    start = pub_date - timedelta(days=7)
+    end = pub_date.replace(hour=23, minute=59, second=59)
+
+    all_posts: dict[str, list[dict]] = {
+        "openai": [],
+        "anthropic": [],
+        "deepmind": [],
+    }
+    errors: list[str] = []
+
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        # OpenAI - RSS feed
+        try:
+            all_posts["openai"] = _fetch_rss_posts(
+                client,
+                "https://openai.com/news/rss.xml",
+                "openai",
+                "https://openai.com",
+                start,
+                end,
+            )
+        except Exception as e:
+            errors.append(f"openai: {e}")
+
+        # Anthropic - HTML scraping (no RSS available)
+        try:
+            all_posts["anthropic"] = _fetch_anthropic_posts(client, start, end)
+        except Exception as e:
+            errors.append(f"anthropic: {e}")
+
+        # DeepMind - RSS feed
+        try:
+            all_posts["deepmind"] = _fetch_rss_posts(
+                client,
+                "https://deepmind.google/blog/rss.xml",
+                "deepmind",
+                "https://deepmind.google",
+                start,
+                end,
+            )
+        except Exception as e:
+            errors.append(f"deepmind: {e}")
+
+    result = {
+        "publication_date": publication_date,
+        "date_range": {
+            "start": start.strftime("%Y-%m-%d"),
+            "end": end.strftime("%Y-%m-%d"),
         },
-        ensure_ascii=False,
-        indent=2,
-    )
+        "posts": all_posts,
+        "total_count": sum(len(v) for v in all_posts.values()),
+    }
+    if errors:
+        result["errors"] = errors
+
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
