@@ -73,6 +73,12 @@ def main():
         help="빠른 테스트 모드 (아티클 1개만 생성)",
     )
 
+    parser.add_argument(
+        "--headroom",
+        action="store_true",
+        help="Headroom 토큰 압축 활성화 및 토큰 절약 통계 출력",
+    )
+
     args = parser.parse_args()
 
     # Preview mode
@@ -109,7 +115,7 @@ def main():
         run_func = run_newsletter_generation
 
     try:
-        result = run_func(target_date, use_hitl=args.hitl)
+        result = run_func(target_date, use_hitl=args.hitl, use_headroom=args.headroom)
         print("-" * 40)
         if result is None:
             print("❌ 뉴스레터 생성 실패")
