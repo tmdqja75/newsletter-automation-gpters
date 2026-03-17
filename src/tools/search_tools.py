@@ -6,7 +6,6 @@ import httpx
 from datetime import datetime, timedelta
 from tavily import TavilyClient
 
-
 def search_ai_news(query: str, max_results: int = 10) -> str:
     """Search for AI/LLM related news using Tavily API.
 
@@ -63,23 +62,34 @@ def search_ai_news(query: str, max_results: int = 10) -> str:
         return json.dumps({"error": str(e)})
 
 
-def search_hackernews(query: str, num_results: int = 10) -> str:
+def search_hackernews(query: str, num_results: int = 10, publication_date: str | None = None) -> str:
     """Search Hacker News for AI-related posts and discussions.
 
     Args:
         query: Search query (e.g., "AI agent", "LLM framework")
         num_results: Number of results to return (default: 10)
+        publication_date: Newsletter publication date in YYYY-MM-DD format.
+            When provided, results are filtered to the 7 days before this date.
+            Defaults to 7 days before today.
 
     Returns:
         JSON string containing HN posts with titles, URLs, points, and comments
     """
     try:
+        if publication_date:
+            pub_date = datetime.strptime(publication_date, "%Y-%m-%d")
+        else:
+            pub_date = datetime.now()
+        start = pub_date - timedelta(days=7)
+        start_timestamp = int(start.timestamp())
+
         # Use HN Algolia API
         search_url = "https://hn.algolia.com/api/v1/search"
         params = {
             "query": query,
             "tags": "story",
             "hitsPerPage": num_results,
+            "numericFilters": f"created_at_i>{start_timestamp}",
         }
 
         with httpx.Client(timeout=30.0) as client:
