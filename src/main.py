@@ -1,6 +1,5 @@
 """Main orchestrator agent for newsletter automation."""
 
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +28,6 @@ def validate_api_keys() -> bool:
         return False
     return True
 
-
 def save_article(content: str, filename: str, date_dir: str) -> str:
     """Save an article to the articles directory.
 
@@ -50,7 +48,7 @@ def save_article(content: str, filename: str, date_dir: str) -> str:
     return str(file_path)
 
 
-def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False, headroom_model=None):
+def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
     """Create the main newsletter orchestrator agent.
 
     Args:
@@ -96,22 +94,18 @@ def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False, h
     if use_hitl:
         agent_config["checkpointer"] = MemorySaver()
 
-    if headroom_model is not None:
-        agent_config["model"] = headroom_model
-
     agent = create_deep_agent(**agent_config)
 
     return agent
 
 
-def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, use_headroom: bool = False):
+def run_newsletter_generation(target_date: str = None, use_hitl: bool = False):
     """Run the full newsletter generation workflow.
 
     Args:
         target_date: Target date for the newsletter (YYYY-MM-DD format)
                     Defaults to next Wednesday
         use_hitl: Whether to enable human-in-the-loop for topic selection
-        use_headroom: Whether to enable headroom token compression
 
     Returns:
         Path to the generated newsletter
@@ -127,16 +121,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
     if use_hitl:
         print("👤 Human-in-the-Loop 모드 활성화")
 
-    headroom_model = None
-    if use_headroom:
-        from langchain_anthropic import ChatAnthropic
-        from headroom.integrations import HeadroomChatModel
-        from .config import MODEL_NAME
-        base_model = ChatAnthropic(model_name=MODEL_NAME, max_tokens=20000)
-        headroom_model = HeadroomChatModel(base_model)
-        print("🗜️  Headroom 토큰 압축 활성화")
-
-    agent = create_newsletter_agent(use_hitl=use_hitl, headroom_model=headroom_model)
+    agent = create_newsletter_agent(use_hitl=use_hitl)
 
     if use_hitl:
         prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
@@ -292,6 +277,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
 
             sys.stdout.flush()
 
+
         # Print final result
         print("\n" + "=" * 40)
         print("📋 최종 결과:")
@@ -300,18 +286,6 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
             print(final_content)
         else:
             print("(응답 없음)")
-
-        if use_headroom and headroom_model is not None:
-            summary = headroom_model.get_savings_summary()
-            print("\n" + "=" * 40)
-            print("📊 Headroom 토큰 절약 통계")
-            print("=" * 40)
-            if summary.get("total_tokens_before"):
-                print(f"원본 토큰 수 (압축 전): {summary['total_tokens_before']:,}")
-            print(f"절약된 토큰 수:         {summary.get('total_tokens_saved', 0):,}")
-            if summary.get("average_savings_percent") is not None:
-                print(f"평균 압축률:            {summary['average_savings_percent']:.1f}%")
-            print("=" * 40)
 
         return {"final_content": final_content}
 
@@ -322,13 +296,12 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
         return None
 
 
-def run_quick_test(target_date: str = None, use_hitl: bool = False, use_headroom: bool = False):
+def run_quick_test(target_date: str = None, use_hitl: bool = False):
     """Run a quick test with a single article.
 
     Args:
         target_date: Target date for the article
         use_hitl: Whether to enable human-in-the-loop for topic selection
-        use_headroom: Whether to enable headroom token compression
 
     Returns:
         Result dict
@@ -343,16 +316,7 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False, use_headroom
     if use_hitl:
         print("👤 Human-in-the-Loop 모드 활성화")
 
-    headroom_model = None
-    if use_headroom:
-        from langchain_anthropic import ChatAnthropic
-        from headroom.integrations import HeadroomChatModel
-        from .config import MODEL_NAME
-        base_model = ChatAnthropic(model_name=MODEL_NAME, max_tokens=20000)
-        headroom_model = HeadroomChatModel(base_model)
-        print("🗜️  Headroom 토큰 압축 활성화")
-
-    agent = create_newsletter_agent(use_hitl=use_hitl, headroom_model=headroom_model)
+    agent = create_newsletter_agent(use_hitl=use_hitl)
 
     prompt = f"""AI 에이전트 관련 뉴스 1개만 찾아서 짧은 아티클을 작성해주세요.
 
@@ -395,18 +359,6 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False, use_headroom
         print("=" * 40)
         if final_content:
             print(str(final_content)[:1000])
-
-        if use_headroom and headroom_model is not None:
-            summary = headroom_model.get_savings_summary()
-            print("\n" + "=" * 40)
-            print("📊 Headroom 토큰 절약 통계")
-            print("=" * 40)
-            if summary.get("total_tokens_before"):
-                print(f"원본 토큰 수 (압축 전): {summary['total_tokens_before']:,}")
-            print(f"절약된 토큰 수:         {summary.get('total_tokens_saved', 0):,}")
-            if summary.get("average_savings_percent") is not None:
-                print(f"평균 압축률:            {summary['average_savings_percent']:.1f}%")
-            print("=" * 40)
 
         return {"final_content": final_content}
 

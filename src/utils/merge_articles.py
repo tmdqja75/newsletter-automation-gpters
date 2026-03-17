@@ -9,8 +9,6 @@ from ..config import (
     NEWSLETTER_FOOTER_TEMPLATE,
     ARTICLES_DIR,
 )
-
-
 def extract_title_from_article(content: str) -> str:
     """Extract the main title from an article.
 
@@ -64,7 +62,6 @@ def get_version_number(date_dir: str) -> str:
     # For now, return a simple placeholder
     # In production, this would track actual version numbers
     return "XX"
-
 
 def merge_newsletter(date_dir: str, version: Optional[str] = None) -> str:
     """Merge individual articles into a complete newsletter.

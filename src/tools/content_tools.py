@@ -8,8 +8,6 @@ from email.utils import parsedate_to_datetime
 import httpx
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-
-
 def fetch_article_content(url: str) -> str:
     """Fetch and extract the main content from a URL.
 
