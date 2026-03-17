@@ -73,6 +73,13 @@ def main():
         help="빠른 테스트 모드 (아티클 1개만 생성)",
     )
 
+    parser.add_argument(
+        "--topics", "-t",
+        type=str,
+        default=None,
+        help="반드시 포함할 토픽 목록 (쉼표로 구분, 예: 'Claude 4 출시, RAG 개선')",
+    )
+
     args = parser.parse_args()
 
     # Preview mode
@@ -109,7 +116,7 @@ def main():
         run_func = run_newsletter_generation
 
     try:
-        result = run_func(target_date, use_hitl=args.hitl)
+        result = run_func(target_date, use_hitl=args.hitl, user_topics=args.topics)
         print("-" * 40)
         if result is None:
             print("❌ 뉴스레터 생성 실패")

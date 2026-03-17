@@ -99,13 +99,14 @@ def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
     return agent
 
 
-def run_newsletter_generation(target_date: str = None, use_hitl: bool = False):
+def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, user_topics: str = None):
     """Run the full newsletter generation workflow.
 
     Args:
         target_date: Target date for the newsletter (YYYY-MM-DD format)
                     Defaults to next Wednesday
         use_hitl: Whether to enable human-in-the-loop for topic selection
+        user_topics: Comma-separated list of topics to force-include as articles
 
     Returns:
         Path to the generated newsletter
@@ -123,10 +124,17 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False):
 
     agent = create_newsletter_agent(use_hitl=use_hitl)
 
+    # Build mandatory topics block if provided
+    mandatory_topics_block = ""
+    if user_topics:
+        topics_list = [t.strip() for t in user_topics.split(",") if t.strip()]
+        topics_formatted = "\n".join(f"- {t}" for t in topics_list)
+        mandatory_topics_block = f"\n\n**필수 포함 토픽 (사용자 요청):**\n{topics_formatted}\n\n위 토픽들은 반드시 본문 기사로 작성되어야 합니다. 나머지 슬롯은 리서치 결과에서 토픽 선택 에이전트가 채워도 됩니다."
+
     if use_hitl:
         prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
 
-발행 예정일: {target_date}
+발행 예정일: {target_date}{mandatory_topics_block}
 
 ## 작업 순서 (HITL 모드)
 1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
@@ -143,7 +151,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False):
     else:
         prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
 
-발행 예정일: {target_date}
+발행 예정일: {target_date}{mandatory_topics_block}
 
 ## 작업 순서
 1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
@@ -296,12 +304,13 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False):
         return None
 
 
-def run_quick_test(target_date: str = None, use_hitl: bool = False):
+def run_quick_test(target_date: str = None, use_hitl: bool = False, user_topics: str = None):
     """Run a quick test with a single article.
 
     Args:
         target_date: Target date for the article
         use_hitl: Whether to enable human-in-the-loop for topic selection
+        user_topics: Comma-separated list of topics to force-include as articles
 
     Returns:
         Result dict
@@ -318,7 +327,14 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False):
 
     agent = create_newsletter_agent(use_hitl=use_hitl)
 
-    prompt = f"""AI 에이전트 관련 뉴스 1개만 찾아서 짧은 아티클을 작성해주세요.
+    # Build mandatory topics block if provided
+    mandatory_topics_block = ""
+    if user_topics:
+        topics_list = [t.strip() for t in user_topics.split(",") if t.strip()]
+        topics_formatted = "\n".join(f"- {t}" for t in topics_list)
+        mandatory_topics_block = f"\n\n**필수 포함 토픽 (사용자 요청):**\n{topics_formatted}\n\n위 토픽 중 첫 번째 토픽을 아티클로 작성해주세요."
+
+    prompt = f"""AI 에이전트 관련 뉴스 1개만 찾아서 짧은 아티클을 작성해주세요.{mandatory_topics_block}
 
 ## 작업 순서
 1. research-agent를 사용하여 AI 에이전트 관련 뉴스 1개를 검색하세요
