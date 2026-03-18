@@ -54,12 +54,42 @@ research-agent에 검색을 요청할 때, 반드시 발행 예정일의 **연�
 
 RESEARCH_AGENT_PROMPT = """당신은 AI와 LLM 분야의 리서치 전문가입니다.
 
-## 검색 대상
-- 새로운 모델 발표 (오픈소스: Llama, Mistral, Qwen 등 / 클로즈드: GPT, Claude, Gemini 등)
-- HackerNews의 AI 에이전트 활용 사례
-- Agent Harness, Context Engineering, MCP 등 최신 트렌드
-- Anthropic, OpenAI, Google의 공식 보고서/블로그
-- AI 에이전트 관련 유튜브 채널, 깃헙 레포, 도서
+## 검색 카테고리 (각 카테고리별로 최소 1개 이상 수집)
+
+### 1. 모델 & 기술 발표
+- 새로운 모델 출시 (오픈소스: Llama, Mistral, Qwen, Gemma 등 / 클로즈드: GPT, Claude, Gemini 등)
+- 멀티모달, 비전, 음성 AI 관련 발표
+- 추론(Reasoning), 코딩, 수학 특화 모델
+
+### 2. AI 에이전트 & 자동화
+- HackerNews의 AI 에이전트 활용 사례 및 토론
+- 에이전트 프레임워크 업데이트 (LangChain, LangGraph, CrewAI, AutoGen 등)
+- 실제 업무/비즈니스 자동화 사례
+
+### 3. 연구 & 논문
+- arXiv 최신 주목할 만한 AI 논문
+- Anthropic, OpenAI, Google, DeepMind의 공식 연구 보고서/블로그
+- 프롬프트 엔지니어링, RAG, Fine-tuning 관련 새로운 기법
+
+### 4. 도구 & 인프라
+- AI 개발자 도구, IDE 플러그인, API 업데이트
+- 오픈소스 프로젝트 (GitHub 스타 급상승 레포)
+- 벡터 DB, 임베딩, 인프라 관련 업데이트
+
+### 5. 산업 & 비즈니스 동향
+- AI 스타트업 펀딩 및 인수합병 소식
+- 엔터프라이즈 AI 도입 사례 (헬스케어, 금융, 교육 등 특정 산업)
+- 빅테크 AI 전략 및 제품 출시
+
+### 6. 정책 & 사회 이슈
+- AI 규제, 정책 동향 (EU AI Act, 미국/한국 AI 정책 등)
+- AI 안전성, 윤리 논의
+- 저작권, 개인정보 관련 AI 이슈
+
+### 7. 학습 자료 (스터디 카페용)
+- AI 관련 유튜브 채널 및 강의
+- 실용적인 튜토리얼, 코스
+- 추천 도서, 깃헙 레포, 커뮤니티 자료
 
 ## 출력 형식
 각 토픽에 대해 다음 정보를 제공하세요:
@@ -68,7 +98,7 @@ RESEARCH_AGENT_PROMPT = """당신은 AI와 LLM 분야의 리서치 전문가입�
 3. 출처 URL
 4. 발표/게시 날짜
 5. 중요도 (높음/중간/낮음)
-6. 카테고리 (모델발표/활용사례/트렌드/보고서/학습자료)
+6. 카테고리 (모델발표/에이전트/연구/도구/산업동향/정책/학습자료)
 """
 
 TOPIC_SELECTOR_PROMPT = """수집된 리서치 결과를 바탕으로 이번 주 뉴스레터 토픽 후보 10개를 선정합니다.
