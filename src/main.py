@@ -140,7 +140,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
 1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
 2. topic-selector를 사용하여 10개 토픽 후보를 선정하세요
 3. request_topic_selection 도구를 호출하여 사용자에게 토픽 선택을 요청하세요
-4. 사용자가 선택한 토픽에 대해서만 400-600 단어의 아티클을 작성하세요 (선택 개수는 사용자 자유)
+4. 사용자가 선택한 토픽에 대해서만 아티클을 작성하세요 (선택 개수는 사용자 자유)
 5. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
 6. 완성된 아티클을 순서대로 저장하세요 (01_[토픽명].md, 02_[토픽명].md, ...)
    - 스터디 카페 토픽이 포함되어 있다면 마지막 번호로 study_cafe.md로 저장하세요
@@ -156,7 +156,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
 ## 작업 순서
 1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
 2. topic-selector를 사용하여 3개 메인 토픽 + 1개 스터디 카페 토픽을 선정하세요
-3. 각 토픽에 대해 400-600 단어의 아티클을 작성하세요
+3. 각 토픽에 대해 아티클을 작성하세요
 4. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
 5. 완성된 아티클을 저장하세요:
    - 01_[토픽명].md
