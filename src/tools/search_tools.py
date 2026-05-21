@@ -6,12 +6,13 @@ import httpx
 from datetime import datetime, timedelta
 from tavily import TavilyClient
 
-def search_ai_news(query: str, max_results: int = 10) -> str:
+def search_ai_news(query: str, max_results: int = 10, article_date: str | None = None) -> str:
     """Search for AI/LLM related news using Tavily API.
 
     Args:
         query: Search query for AI news (e.g., "new LLM model release 2026")
         max_results: Maximum number of results to return (default: 10)
+        article_date: Newsletter publication date in YYYY-MM-DD format.
 
     Returns:
         JSON string containing search results with titles, URLs, and snippets
@@ -30,16 +31,15 @@ def search_ai_news(query: str, max_results: int = 10) -> str:
             query=query,
             search_depth="advanced",
             max_results=max_results,
-            start_date=two_weeks_ago,  # Filter for content from last 2 weeks
-            include_domains=[
-                "huggingface.co",
-                "arxiv.org",
-                "techcrunch.com",
-                "theverge.com",
-                "venturebeat.com",
-                "wired.com",
-                "arstechnica.com",
-            ],
+            start_date= article_date or two_weeks_ago,  # Filter for content from last 2 weeks
+            # include_domains=[
+            #     "arxiv.org",
+            #     "techcrunch.com",
+            #     "theverge.com",
+            #     "venturebeat.com",
+            #     "wired.com",
+            #     "arstechnica.com",
+            # ],
             exclude_domains=[
                 "openai.com",
                 "anthropic.com",

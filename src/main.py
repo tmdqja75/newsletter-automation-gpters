@@ -172,7 +172,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
     print()
 
     try:
-        config = {"configurable": {"thread_id": f"newsletter-{target_date}"}}
+        config = {"configurable": {"thread_id": f"newsletter-{target_date}a"}}
         final_content = None
 
         for event in agent.stream({"messages": [{"role": "user", "content": prompt}]}, config=config):

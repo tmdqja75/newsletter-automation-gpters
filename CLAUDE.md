@@ -203,5 +203,5 @@ This project uses `uv` (not poetry/pip). All dependency management through:
 
 ## Model Configuration
 
-Default model: `claude-sonnet-4-5-20250929` (via deepagents)
-Override in `.env`: `MODEL_NAME=claude-sonnet-4-5-20250929`
+Default model: `claude-sonnet-4-6` (via deepagents)
+Override in `.env`: `MODEL_NAME=claude-sonnet-4-6`
