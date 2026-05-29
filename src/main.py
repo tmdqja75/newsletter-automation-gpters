@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from deepagents import create_deep_agent
+from deepagents.backends import FilesystemBackend
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
@@ -89,6 +90,7 @@ def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
         "system_prompt": system_prompt,
         "tools": tools,
         "subagents": [research_subagent, topic_selection_agent, tone_agent],
+        "backend": FilesystemBackend(root_dir=".", virtual_mode=True),
     }
 
     if use_hitl:
@@ -138,9 +140,9 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
 
 ## 작업 순서 (HITL 모드)
 1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
-2. topic-selector를 사용하여 10개 토픽 후보를 선정하세요
+2. research-agent의 결과를 그대로 markdown 파일로 아티클 저장 디렉토리에 저장해 주세요. (research_results.md)
 3. request_topic_selection 도구를 호출하여 사용자에게 토픽 선택을 요청하세요
-4. 사용자가 선택한 토픽에 대해서만 아티클을 작성하세요 (선택 개수는 사용자 자유)
+4. 사용자가 선택한 토픽에 대해서만 아티클을 작성하세요 (선택 개수는 사용자 자유, research_results.md에 있는 넘버링 기준으로 아티클 주제 선정)
 5. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
 6. 완성된 아티클을 순서대로 저장하세요 (01_[토픽명].md, 02_[토픽명].md, ...)
    - 스터디 카페 토픽이 포함되어 있다면 마지막 번호로 study_cafe.md로 저장하세요

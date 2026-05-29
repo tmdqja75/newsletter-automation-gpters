@@ -24,14 +24,21 @@ def search_ai_news(query: str, max_results: int = 10, article_date: str | None =
     client = TavilyClient(api_key=api_key)
 
     # Calculate date from 2 weeks ago for filtering recent content
-    two_weeks_ago = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+    if article_date:
+        try:
+            article_datetime = datetime.strptime(article_date, "%Y-%m-%d")
+            two_weeks_ago = (article_datetime - timedelta(days=14)).strftime("%Y-%m-%d")
+        except ValueError:
+            return json.dumps({"error": "Invalid article_date format. Use YYYY-MM-DD."})
+    else:
+        two_weeks_ago = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
 
     try:
         response = client.search(
             query=query,
             search_depth="advanced",
             max_results=max_results,
-            start_date= article_date or two_weeks_ago,  # Filter for content from last 2 weeks
+            start_date= two_weeks_ago,  # Filter for content from last 2 weeks
             # include_domains=[
             #     "arxiv.org",
             #     "techcrunch.com",

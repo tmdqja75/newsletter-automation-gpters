@@ -51,6 +51,8 @@ Thumbs.db
 
 # Project specific
 articles/**/draft_*
+articles/
+log-analysis/
 .claude/
 
 # Git worktrees
