@@ -8,6 +8,14 @@
     "openai": [
       {
         "source": "openai",
+        "title": "Introducing GPT-5.3-Codex-Spark",
+        "url": "https://openai.com/index/introducing-gpt-5-3-codex-spark",
+        "date": "2026-02-12",
+        "category": "Product",
+        "description": "Introducing GPT-5.3-Codex-Spark—our first real-time coding model. 15x faster generation, 128k context, now in research preview for ChatGPT Pro users."
+      },
+      {
+        "source": "openai",
         "title": "Harness engineering: leveraging Codex in an agent-first world",
         "url": "https://openai.com/index/harness-engineering",
         "date": "2026-02-11",
@@ -21,14 +29,6 @@
         "date": "2026-02-09",
         "category": "Global Affairs",
         "description": "OpenAI for Government announces the deployment of a custom ChatGPT on GenAI.mil, bringing secure, safety-forward AI to U.S. defense teams."
-      },
-      {
-        "source": "openai",
-        "title": "Testing ads in ChatGPT",
-        "url": "https://openai.com/index/testing-ads-in-chatgpt",
-        "date": "2026-02-09",
-        "category": "Company",
-        "description": "OpenAI begins testing ads in ChatGPT to support free access, with clear labeling, answer independence, strong privacy protections, and user control."
       },
       {
         "source": "openai",
@@ -64,14 +64,6 @@
       },
       {
         "source": "openai",
-        "title": "Navigating health questions with ChatGPT",
-        "url": "https://openai.com/index/navigating-health-questions",
-        "date": "2026-02-05",
-        "category": "ChatGPT",
-        "description": "A family shares how ChatGPT helped them prepare for critical cancer treatment decisions for their son alongside expert guidance from his doctors."
-      },
-      {
-        "source": "openai",
         "title": "GPT-5.3-Codex System Card",
         "url": "https://openai.com/index/gpt-5-3-codex-system-card",
         "date": "2026-02-05",
@@ -87,25 +79,16 @@
         "description": "GPT-5.3-Codex is a Codex-native agent that pairs frontier coding performance with general reasoning to support long-horizon, real-world technical work."
       }
     ],
-    "anthropic": [
-      {
-        "source": "anthropic",
-        "title": "Introducing Claude Opus 4.6",
-        "url": "https://www.anthropic.com/news/claude-opus-4-6",
-        "date": "2026-02-05",
-        "category": "Announcements",
-        "description": "We’re upgrading our smartest model. Across agentic coding, computer use, tool use, search, and finance, Opus 4.6 is an industry-leading model, often by wide margin."
-      },
-      {
-        "source": "anthropic",
-        "title": "Covering electricity price increases from our data centers",
-        "url": "https://www.anthropic.com/news/covering-electricity-price-increases",
-        "date": "2026-02-11",
-        "category": "Policy",
-        "description": ""
-      }
-    ],
+    "anthropic": [],
     "deepmind": [
+      {
+        "source": "deepmind",
+        "title": "Gemini 3 Deep Think: Advancing science, research and engineering",
+        "url": "https://deepmind.google/blog/gemini-3-deep-think-advancing-science-research-and-engineering/",
+        "date": "2026-02-12",
+        "category": "",
+        "description": "Our most specialized reasoning mode is now updated to solve modern science, research and engineering challenges."
+      },
       {
         "source": "deepmind",
         "title": "Accelerating Mathematical and Scientific Discovery with Gemini Deep Think",
@@ -116,5 +99,5 @@
       }
     ]
   },
-  "total_count": 13
+  "total_count": 11
 }

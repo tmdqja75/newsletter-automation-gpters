@@ -49,10 +49,11 @@ def save_article(content: str, filename: str, date_dir: str) -> str:
     return str(file_path)
 
 
-def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
+def create_newsletter_agent(target_date: str, articles_root: str = None, use_hitl: bool = False):
     """Create the main newsletter orchestrator agent.
 
     Args:
+        target_date: The date for which to create the newsletter (YYYY-MM-DD format)
         articles_root: Root directory for article storage (default: ./articles)
         use_hitl: Whether to use human-in-the-loop for topic selection
 
@@ -71,22 +72,27 @@ def create_newsletter_agent(articles_root: str = None, use_hitl: bool = False):
 
     if use_hitl:
         tools.append(request_topic_selection)
-        system_prompt += """
+        
+        system_prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
 
-## HITL 토픽 선정 모드
-이 세션은 Human-in-the-Loop 모드입니다. 다음 절차를 따르세요:
+발행 예정일: {target_date}
 
-1. research-agent로 뉴스를 수집합니다
-2. topic-selector를 호출하여 10개 토픽 후보를 받습니다
-3. topic-selector의 결과를 그대로 request_topic_selection 도구에 전달하여 사용자에게 선택을 요청합니다
-4. 사용자가 선택한 토픽에 대해서만 아티클을 작성합니다 (선택 개수는 사용자 자유)
-5. 사용자가 reject하면 topic-selector만 다시 호출하고 (리서치는 재사용), 다시 request_topic_selection을 호출합니다
+## 작업 순서 (HITL 모드)
+1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
+2. research-agent의 결과를 그대로 markdown 파일로 아티클 저장 디렉토리에 저장해 주세요. (research_results.md)
+3. request_topic_selection 도구를 호출하여 사용자에게 토픽 선택을 요청하세요
+4. 사용자가 선택한 토픽에 대해서만 아티클을 작성하세요 (선택 개수는 사용자 자유, research_results.md에 있는 넘버링 기준으로 아티클 주제 선정)
+5. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
+6. 완성된 아티클을 순서대로 저장하세요 (01_[토픽명].md, 02_[토픽명].md, ...)
+- 스터디 카페 토픽이 포함되어 있다면 마지막 번호로 study_cafe.md로 저장하세요
+7. merge_newsletter를 호출하여 최종 뉴스레터를 생성하세요
 
-반드시 request_topic_selection 도구를 호출하여 사용자 승인을 받은 후에 아티클을 작성하세요.
+아티클 저장 디렉토리: articles/{target_date}/
 """
 
     # Build agent configuration
     agent_config = {
+        "model": "anthropic:claude-sonnet-4-6",
         "system_prompt": system_prompt,
         "tools": tools,
         "subagents": [research_subagent, topic_selection_agent, tone_agent],
@@ -124,8 +130,10 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
     if use_hitl:
         print("👤 Human-in-the-Loop 모드 활성화")
 
-    agent = create_newsletter_agent(use_hitl=use_hitl)
+    agent = create_newsletter_agent(target_date=target_date, use_hitl=use_hitl)
 
+    prompt = "이번 주 오토마타 뉴스레터를 작성해주세요."
+    
     # Build mandatory topics block if provided
     mandatory_topics_block = ""
     if user_topics:
@@ -133,42 +141,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
         topics_formatted = "\n".join(f"- {t}" for t in topics_list)
         mandatory_topics_block = f"\n\n**필수 포함 토픽 (사용자 요청):**\n{topics_formatted}\n\n위 토픽들은 반드시 본문 기사로 작성되어야 합니다. 나머지 슬롯은 리서치 결과에서 토픽 선택 에이전트가 채워도 됩니다."
 
-    if use_hitl:
-        prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
-
-발행 예정일: {target_date}{mandatory_topics_block}
-
-## 작업 순서 (HITL 모드)
-1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
-2. research-agent의 결과를 그대로 markdown 파일로 아티클 저장 디렉토리에 저장해 주세요. (research_results.md)
-3. request_topic_selection 도구를 호출하여 사용자에게 토픽 선택을 요청하세요
-4. 사용자가 선택한 토픽에 대해서만 아티클을 작성하세요 (선택 개수는 사용자 자유, research_results.md에 있는 넘버링 기준으로 아티클 주제 선정)
-5. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
-6. 완성된 아티클을 순서대로 저장하세요 (01_[토픽명].md, 02_[토픽명].md, ...)
-   - 스터디 카페 토픽이 포함되어 있다면 마지막 번호로 study_cafe.md로 저장하세요
-7. merge_newsletter를 호출하여 최종 뉴스레터를 생성하세요
-
-아티클 저장 디렉토리: articles/{target_date}/
-"""
-    else:
-        prompt = f"""이번 주 오토마타 뉴스레터를 작성해주세요.
-
-발행 예정일: {target_date}{mandatory_topics_block}
-
-## 작업 순서
-1. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
-2. topic-selector를 사용하여 3개 메인 토픽 + 1개 스터디 카페 토픽을 선정하세요
-3. 각 토픽에 대해 아티클을 작성하세요
-4. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
-5. 완성된 아티클을 저장하세요:
-   - 01_[토픽명].md
-   - 02_[토픽명].md
-   - 03_[토픽명].md
-   - 04_study_cafe.md
-6. merge_newsletter를 호출하여 최종 뉴스레터를 생성하세요
-
-아티클 저장 디렉토리: articles/{target_date}/
-"""
+        prompt += mandatory_topics_block
 
     print("🤖 에이전트 실행 중 (스트리밍)...")
     print()
@@ -327,7 +300,7 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False, user_topics:
     if use_hitl:
         print("👤 Human-in-the-Loop 모드 활성화")
 
-    agent = create_newsletter_agent(use_hitl=use_hitl)
+    agent = create_newsletter_agent(target_date=target_date, use_hitl=use_hitl)
 
     # Build mandatory topics block if provided
     mandatory_topics_block = ""
