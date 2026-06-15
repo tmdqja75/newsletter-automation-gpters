@@ -7,6 +7,7 @@ from src.tools.research_collector import (
     _build_query_plan,
     _run_searches,
     _normalize_candidates,
+    _dedupe_candidates,
 )
 
 
@@ -183,3 +184,24 @@ def test_normalize_candidates_skips_missing_url_or_title():
 
     candidates = _normalize_candidates(raw_results)
     assert candidates == []
+
+
+def test_dedupe_candidates_by_url_and_title():
+    candidates = [
+        {"title": "Same Title", "url": "https://example.com/page?utm_source=x", "score": 0.5},
+        {"title": "Same Title", "url": "https://example.com/page", "score": 0.9},
+        {"title": "Different", "url": "https://example.com/other", "score": 0.3},
+        {"title": "different", "url": "https://example.com/another", "score": 0.7},
+    ]
+
+    result = _dedupe_candidates(candidates)
+
+    assert len(result) == 2
+
+    same_title = next(c for c in result if c["title"] == "Same Title")
+    assert same_title["score"] == 0.9
+    assert same_title["url"] == "https://example.com/page"
+
+    other = next(c for c in result if c["title"] != "Same Title")
+    assert other["score"] == 0.7
+    assert other["url"] == "https://example.com/another"

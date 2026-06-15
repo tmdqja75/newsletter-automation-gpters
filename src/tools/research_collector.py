@@ -186,3 +186,40 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
             })
 
     return candidates
+
+
+def _canonical_url(url: str) -> str:
+    """Normalize a URL for deduplication: strip query/fragment, lowercase host, drop trailing slash."""
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/")
+    return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
+
+
+def _normalize_title(title: str) -> str:
+    """Normalize a title for deduplication: lowercase, strip punctuation, collapse whitespace."""
+    title = title.lower()
+    title = re.sub(r"[^\w\s]", "", title)
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _dedupe_candidates(candidates: list[dict]) -> list[dict]:
+    """Deduplicate candidates by canonical URL, then by normalized title.
+
+    When duplicates are found, keep the one with the higher score.
+    """
+    best_by_url: dict[str, dict] = {}
+    for candidate in candidates:
+        key = _canonical_url(candidate["url"])
+        existing = best_by_url.get(key)
+        if existing is None or candidate["score"] > existing["score"]:
+            best_by_url[key] = candidate
+
+    best_by_title: dict[str, dict] = {}
+    for candidate in best_by_url.values():
+        key = _normalize_title(candidate["title"])
+        existing = best_by_title.get(key)
+        if existing is None or candidate["score"] > existing["score"]:
+            best_by_title[key] = candidate
+
+    return list(best_by_title.values())
