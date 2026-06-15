@@ -8,6 +8,7 @@ from src.tools.research_collector import (
     _run_searches,
     _normalize_candidates,
     _dedupe_candidates,
+    _date_filter,
 )
 
 
@@ -205,3 +206,24 @@ def test_dedupe_candidates_by_url_and_title():
     other = next(c for c in result if c["title"] != "Same Title")
     assert other["score"] == 0.7
     assert other["url"] == "https://example.com/another"
+
+
+def test_date_filter_drops_out_of_window_and_keeps_undated():
+    candidates = [
+        {"title": "In window", "url": "https://example.com/in", "published_at": "2026-06-10", "score": 1.0},
+        {"title": "Too old", "url": "https://example.com/old", "published_at": "2026-05-01", "score": 1.0},
+        {"title": "Future", "url": "https://example.com/future", "published_at": "2026-06-20", "score": 1.0},
+        {"title": "Undated", "url": "https://example.com/undated", "published_at": None, "score": -0.5},
+        {"title": "Boundary start", "url": "https://example.com/start", "published_at": "2026-06-03", "score": 1.0},
+        {"title": "Boundary end", "url": "https://example.com/end", "published_at": "2026-06-17", "score": 1.0},
+    ]
+
+    result = _date_filter(candidates, "2026-06-17")
+    titles = {c["title"] for c in result}
+
+    assert "In window" in titles
+    assert "Undated" in titles
+    assert "Boundary start" in titles
+    assert "Boundary end" in titles
+    assert "Too old" not in titles
+    assert "Future" not in titles

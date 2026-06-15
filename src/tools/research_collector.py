@@ -223,3 +223,30 @@ def _dedupe_candidates(candidates: list[dict]) -> list[dict]:
             best_by_title[key] = candidate
 
     return list(best_by_title.values())
+
+
+def _date_filter(candidates: list[dict], publication_date: str) -> list[dict]:
+    """Drop candidates whose parseable published_at falls outside
+    [publication_date - 14 days, publication_date].
+
+    Candidates with no parseable published_at are kept (already
+    score-penalized during normalization).
+    """
+    pub_date = datetime.strptime(publication_date, "%Y-%m-%d")
+    window_start = pub_date - timedelta(days=14)
+
+    filtered = []
+    for candidate in candidates:
+        published_at = candidate.get("published_at")
+        if not published_at:
+            filtered.append(candidate)
+            continue
+        try:
+            dt = datetime.strptime(published_at, "%Y-%m-%d")
+        except ValueError:
+            filtered.append(candidate)
+            continue
+        if window_start <= dt <= pub_date:
+            filtered.append(candidate)
+
+    return filtered
