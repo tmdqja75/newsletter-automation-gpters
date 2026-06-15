@@ -250,3 +250,9 @@ def _date_filter(candidates: list[dict], publication_date: str) -> list[dict]:
             filtered.append(candidate)
 
     return filtered
+
+
+def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[dict]:
+    """Sort candidates by score (descending) and truncate to max_search_results."""
+    ranked = sorted(candidates, key=lambda c: c["score"], reverse=True)
+    return ranked[:max_search_results]

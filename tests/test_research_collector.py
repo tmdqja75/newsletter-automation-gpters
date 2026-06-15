@@ -9,6 +9,7 @@ from src.tools.research_collector import (
     _normalize_candidates,
     _dedupe_candidates,
     _date_filter,
+    _rank_and_truncate,
 )
 
 
@@ -227,3 +228,15 @@ def test_date_filter_drops_out_of_window_and_keeps_undated():
     assert "Boundary end" in titles
     assert "Too old" not in titles
     assert "Future" not in titles
+
+
+def test_rank_and_truncate_sorts_by_score_and_limits():
+    candidates = [
+        {"title": "Low", "score": 0.1},
+        {"title": "High", "score": 0.9},
+        {"title": "Mid", "score": 0.5},
+    ]
+
+    result = _rank_and_truncate(candidates, max_search_results=2)
+
+    assert [c["title"] for c in result] == ["High", "Mid"]
