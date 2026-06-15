@@ -11,6 +11,7 @@ from src.tools.research_collector import (
     _date_filter,
     _rank_and_truncate,
     _fetch_top_candidates,
+    _summarize_candidates,
 )
 
 
@@ -287,3 +288,64 @@ def test_fetch_top_candidates_handles_failure(monkeypatch):
 
     assert fetched_content == {}
     assert candidates[0]["fetched"] is False
+
+
+def test_summarize_candidates_merges_enrichment_by_url():
+    candidates = [
+        {"title": "A", "url": "https://example.com/a", "source": "example.com",
+         "published_at": "2026-06-10", "summary": "snippet a", "key_facts": [],
+         "why_it_matters": "", "topic_type": "main", "category": "model_releases",
+         "score": 1.0, "fetched": True},
+        {"title": "B", "url": "https://example.com/b", "source": "example.com",
+         "published_at": None, "summary": "snippet b", "key_facts": [],
+         "why_it_matters": "", "topic_type": "main", "category": "tools_infra",
+         "score": -0.5, "fetched": False},
+    ]
+    fetched_content = {"https://example.com/a": "full content a"}
+
+    def fake_summarizer(items):
+        assert items == [{"url": "https://example.com/a", "title": "A",
+                           "source": "example.com", "content": "full content a"}]
+        return [{"url": "https://example.com/a", "summary": "요약 A", "key_facts": ["fact1"],
+                 "why_it_matters": "중요함", "topic_type": "main"}]
+
+    errors = _summarize_candidates(candidates, fetched_content, fake_summarizer)
+
+    assert errors == []
+    assert candidates[0]["summary"] == "요약 A"
+    assert candidates[0]["key_facts"] == ["fact1"]
+    assert candidates[0]["why_it_matters"] == "중요함"
+    assert candidates[1]["summary"] == "snippet b"  # unfetched candidate untouched
+
+
+def test_summarize_candidates_falls_back_on_summarizer_error():
+    candidates = [
+        {"title": "A", "url": "https://example.com/a", "source": "example.com",
+         "published_at": "2026-06-10", "summary": "snippet a", "key_facts": [],
+         "why_it_matters": "", "topic_type": "main", "category": "model_releases",
+         "score": 1.0, "fetched": True},
+    ]
+    fetched_content = {"https://example.com/a": "full content a"}
+
+    def broken_summarizer(items):
+        raise RuntimeError("model unavailable")
+
+    errors = _summarize_candidates(candidates, fetched_content, broken_summarizer)
+
+    assert any("summarizer" in e for e in errors)
+    assert candidates[0]["summary"] == "full content a"[:200]
+    assert candidates[0]["key_facts"] == []
+
+
+def test_summarize_candidates_noop_when_nothing_fetched():
+    candidates = [
+        {"title": "A", "url": "https://example.com/a", "source": "example.com",
+         "published_at": None, "summary": "snippet a", "key_facts": [],
+         "why_it_matters": "", "topic_type": "main", "category": "model_releases",
+         "score": -0.5, "fetched": False},
+    ]
+
+    errors = _summarize_candidates(candidates, {}, lambda items: [])
+
+    assert errors == []
+    assert candidates[0]["summary"] == "snippet a"

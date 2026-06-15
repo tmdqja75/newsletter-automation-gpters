@@ -284,3 +284,90 @@ def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_pe
         candidate["fetched"] = True
 
     return fetched_content
+
+
+SUMMARIZER_SYSTEM_PROMPT = """당신은 AI 뉴스 리서치 보조입니다. 주어진 각 기사에 대해 다음 정보를 JSON 배열로 반환하세요:
+- url: 기사 URL (입력과 동일하게 유지)
+- summary: 2-3문장 한국어 요약
+- key_facts: 핵심 사실 목록 (문자열 배열, 최대 5개)
+- why_it_matters: 이 소식이 왜 중요한지 1-2문장 설명
+- topic_type: "main" 또는 "study_cafe" 중 하나 (학습 자료/튜토리얼이면 study_cafe)
+
+반드시 유효한 JSON 배열만 반환하세요. 다른 텍스트를 포함하지 마세요.
+"""
+
+
+def _default_summarizer(items: list[dict]) -> list[dict]:
+    """Summarize fetched candidates in a single batch LLM call.
+
+    Args:
+        items: list of {"url", "title", "source", "content"} dicts.
+
+    Returns:
+        List of {"url", "summary", "key_facts", "why_it_matters", "topic_type"}
+        dicts. Returns [] on any error (caller applies snippet fallback).
+    """
+    from langchain.chat_models import init_chat_model
+    from .. import config
+
+    try:
+        model = init_chat_model(config.to_model_spec(config.RESEARCH_COLLECTOR_MODEL))
+        response = model.invoke([
+            {"role": "system", "content": SUMMARIZER_SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
+        ])
+        content = getattr(response, "content", response)
+        text = content if isinstance(content, str) else str(content)
+        return json.loads(text)
+    except Exception:
+        return []
+
+
+def _summarize_candidates(candidates: list[dict], fetched_content: dict[str, str], summarizer) -> list[str]:
+    """Enrich fetched candidates in place via the summarizer.
+
+    Non-fetched candidates are left untouched (they keep their
+    snippet-based summary from normalization). Returns a list of error
+    messages (empty on full success).
+    """
+    if not fetched_content:
+        return []
+
+    by_url = {c["url"]: c for c in candidates}
+    items = [
+        {"url": url, "title": by_url[url]["title"], "source": by_url[url]["source"], "content": content}
+        for url, content in fetched_content.items()
+        if url in by_url
+    ]
+
+    errors: list[str] = []
+    try:
+        enrichments = summarizer(items)
+    except Exception as exc:
+        enrichments = []
+        errors.append(f"summarizer: {exc}")
+
+    enrichment_by_url = {
+        e["url"]: e for e in enrichments if isinstance(e, dict) and "url" in e
+    } if isinstance(enrichments, list) else {}
+
+    if not enrichment_by_url:
+        errors.append("summarizer: no valid enrichment returned, using snippet fallback")
+
+    for candidate in candidates:
+        url = candidate["url"]
+        if url not in fetched_content:
+            continue
+
+        enrichment = enrichment_by_url.get(url)
+        if enrichment:
+            candidate["summary"] = enrichment.get("summary", candidate["summary"])
+            candidate["key_facts"] = enrichment.get("key_facts", [])
+            candidate["why_it_matters"] = enrichment.get("why_it_matters", "")
+            candidate["topic_type"] = enrichment.get("topic_type", candidate["topic_type"])
+        else:
+            candidate["summary"] = fetched_content[url][:200]
+            candidate["key_facts"] = []
+            candidate["why_it_matters"] = ""
+
+    return errors
