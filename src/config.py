@@ -12,6 +12,22 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 # Model configuration
 MODEL_NAME = os.getenv("MODEL_NAME", "claude-sonnet-4-6")
 
+# Cheap/fast model used by collect_weekly_research for batch summarization.
+RESEARCH_COLLECTOR_MODEL = os.getenv("RESEARCH_COLLECTOR_MODEL", "claude-haiku-4-5")
+
+
+def to_model_spec(model_name: str) -> str:
+    """Convert a bare model name into a DeepAgents-compatible model spec.
+
+    Names without a provider prefix (no ':') are assumed to be Anthropic
+    models and get an "anthropic:" prefix. Names that already include a
+    provider prefix (e.g. "openai:gpt-5-mini") are returned unchanged.
+    """
+    name = model_name.strip()
+    if ":" in name:
+        return name
+    return f"anthropic:{name}"
+
 # Paths
 ARTICLES_DIR = "articles"
 
