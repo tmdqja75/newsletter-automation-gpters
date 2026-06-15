@@ -456,3 +456,10 @@ def test_collect_weekly_research_wrapper_total_failure_returns_valid_json(monkey
 
     assert parsed["candidates"] == []
     assert parsed["errors"]
+
+
+def test_research_subagent_tools_wiring():
+    from src.agents.research import research_subagent
+    from src.tools.content_tools import fetch_article_content
+
+    assert research_subagent["tools"] == [collect_weekly_research, fetch_article_content]
