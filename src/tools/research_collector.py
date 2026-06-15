@@ -256,3 +256,31 @@ def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[
     """Sort candidates by score (descending) and truncate to max_search_results."""
     ranked = sorted(candidates, key=lambda c: c["score"], reverse=True)
     return ranked[:max_search_results]
+
+
+def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_per_source: int) -> dict[str, str]:
+    """Fetch full content for the top max_fetches candidates (already ranked).
+
+    Mutates each successfully-fetched candidate's "fetched" flag to True.
+    Returns a dict mapping candidate URL -> truncated fetched content, for
+    candidates that were fetched successfully.
+    """
+    fetched_content: dict[str, str] = {}
+
+    for candidate in candidates[:max_fetches]:
+        try:
+            result = json.loads(fetch_article_content(candidate["url"]))
+        except Exception:
+            continue
+
+        if "error" in result:
+            continue
+
+        content = result.get("content", "")
+        if not content:
+            continue
+
+        fetched_content[candidate["url"]] = content[:max_chars_per_source]
+        candidate["fetched"] = True
+
+    return fetched_content

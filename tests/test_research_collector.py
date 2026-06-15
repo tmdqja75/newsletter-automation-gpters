@@ -10,6 +10,7 @@ from src.tools.research_collector import (
     _dedupe_candidates,
     _date_filter,
     _rank_and_truncate,
+    _fetch_top_candidates,
 )
 
 
@@ -240,3 +241,49 @@ def test_rank_and_truncate_sorts_by_score_and_limits():
     result = _rank_and_truncate(candidates, max_search_results=2)
 
     assert [c["title"] for c in result] == ["High", "Mid"]
+
+
+def test_fetch_top_candidates_limits_and_truncates(monkeypatch):
+    candidates = [
+        {"title": f"T{i}", "url": f"https://example.com/{i}", "source": "example.com",
+         "published_at": "2026-06-10", "summary": "snippet", "key_facts": [],
+         "why_it_matters": "", "topic_type": "main", "category": "model_releases",
+         "score": 1.0, "fetched": False}
+        for i in range(5)
+    ]
+
+    calls = []
+
+    def fake_fetch_article_content(url):
+        calls.append(url)
+        return json.dumps({"url": url, "domain": "example.com", "title": "T",
+                            "description": "", "content": "x" * 100})
+
+    monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
+
+    fetched_content = _fetch_top_candidates(candidates, max_fetches=2, max_chars_per_source=10)
+
+    assert calls == ["https://example.com/0", "https://example.com/1"]
+    assert all(len(content) == 10 for content in fetched_content.values())
+    assert candidates[0]["fetched"] is True
+    assert candidates[1]["fetched"] is True
+    assert candidates[2]["fetched"] is False
+
+
+def test_fetch_top_candidates_handles_failure(monkeypatch):
+    candidates = [
+        {"title": "T0", "url": "https://example.com/0", "source": "example.com",
+         "published_at": "2026-06-10", "summary": "snippet", "key_facts": [],
+         "why_it_matters": "", "topic_type": "main", "category": "model_releases",
+         "score": 1.0, "fetched": False},
+    ]
+
+    def fake_fetch_article_content(url):
+        return json.dumps({"error": "boom", "url": url})
+
+    monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
+
+    fetched_content = _fetch_top_candidates(candidates, max_fetches=2, max_chars_per_source=10)
+
+    assert fetched_content == {}
+    assert candidates[0]["fetched"] is False
