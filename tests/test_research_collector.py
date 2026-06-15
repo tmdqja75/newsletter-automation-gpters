@@ -6,6 +6,7 @@ from src.tools.research_collector import (
     RESEARCH_QUERY_PLAN,
     _build_query_plan,
     _run_searches,
+    _normalize_candidates,
 )
 
 
@@ -111,3 +112,74 @@ def test_run_searches_captures_errors_without_raising(monkeypatch):
 
     assert len(errors) == len(plan)
     assert all(r["items"] == [] for r in raw_results)
+
+
+def test_normalize_candidates_handles_tavily_hn_blog():
+    raw_results = [
+        {
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [{"title": "Tavily Item", "url": "https://news.example.com/a",
+                       "content": "snippet", "score": 0.75}],
+        },
+        {
+            "category": "real_world_usecases", "tool": "hn", "query": "Show HN AI agent",
+            "items": [{"title": "HN Item", "url": "https://maker.example.com/b",
+                       "hn_url": "https://news.ycombinator.com/item?id=123",
+                       "points": 80, "num_comments": 30, "author": "dev",
+                       "created_at": "2026-06-10T12:00:00.000Z"}],
+        },
+        {
+            "category": "official_blogs", "tool": "blog", "query": None,
+            "items": [{"source": "openai", "title": "Blog Item", "url": "https://openai.com/news/c",
+                       "date": "2026-06-12", "category": "Research", "description": "blog desc"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+    assert len(candidates) == 3
+
+    tavily_c = next(c for c in candidates if c["title"] == "Tavily Item")
+    assert tavily_c["source"] == "news.example.com"
+    assert tavily_c["published_at"] is None
+    # tavily_score (0.75) - 0.5 (missing published_at) = 0.25
+    assert tavily_c["score"] == 0.25
+    assert tavily_c["topic_type"] == "main"
+    assert tavily_c["fetched"] is False
+
+    hn_c = next(c for c in candidates if c["title"] == "HN Item")
+    assert hn_c["published_at"] == "2026-06-10"
+    assert hn_c["source"] == "maker.example.com"
+    # HN points>50 (+0.2) + real_world_usecases (+0.3) = 0.5
+    assert hn_c["score"] == 0.5
+    assert "news.ycombinator.com" in hn_c["summary"]
+
+    blog_c = next(c for c in candidates if c["title"] == "Blog Item")
+    assert blog_c["source"] == "openai"
+    assert blog_c["published_at"] == "2026-06-12"
+    assert blog_c["topic_type"] == "main"
+    assert blog_c["score"] == 0.0
+
+
+def test_normalize_candidates_study_resources_topic_type():
+    raw_results = [
+        {
+            "category": "study_resources", "tool": "tavily", "query": "...",
+            "items": [{"title": "Tutorial", "url": "https://example.com/tut",
+                       "content": "snippet", "score": 0.5}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+    assert candidates[0]["topic_type"] == "study_cafe"
+
+
+def test_normalize_candidates_skips_missing_url_or_title():
+    raw_results = [
+        {"category": "model_releases", "tool": "tavily", "query": "...",
+         "items": [{"title": "", "url": "https://example.com", "content": "x", "score": 0.5}]},
+        {"category": "model_releases", "tool": "tavily", "query": "...",
+         "items": [{"title": "No URL", "url": "", "content": "x", "score": 0.5}]},
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+    assert candidates == []

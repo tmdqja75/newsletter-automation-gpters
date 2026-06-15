@@ -110,3 +110,79 @@ def _run_searches(query_plan: list[dict], publication_date: str) -> tuple[list[d
         raw_results.append({"category": category, "tool": tool, "query": query, "items": items})
 
     return raw_results, errors
+
+
+def _parse_hn_date(created_at: str) -> str | None:
+    """Parse HN's ISO8601 created_at into YYYY-MM-DD, or None if unparseable."""
+    try:
+        return datetime.fromisoformat(created_at.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
+def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
+    """Convert raw search results into preliminary ResearchCandidate dicts.
+
+    Applies the ranking-score formula at normalization time:
+        score = tavily_score (0 for HN/blog)
+              + 0.3 if category == "real_world_usecases"
+              + 0.2 if this is an HN result with points > 50
+              - 0.5 if published_at is missing/unparseable
+    """
+    candidates: list[dict] = []
+
+    for result in raw_results:
+        category = result["category"]
+        tool = result["tool"]
+        topic_type = CATEGORY_TOPIC_TYPE.get(category, DEFAULT_TOPIC_TYPE)
+
+        for item in result["items"]:
+            if tool == "tavily":
+                url = item.get("url", "")
+                title = item.get("title", "")
+                published_at = None
+                score = float(item.get("score", 0) or 0)
+                summary = item.get("content", "")
+                source = urlparse(url).netloc
+            elif tool == "hn":
+                url = item.get("url") or item.get("hn_url", "")
+                title = item.get("title", "")
+                published_at = _parse_hn_date(item.get("created_at", ""))
+                points = item.get("points", 0) or 0
+                score = 0.2 if points > 50 else 0.0
+                hn_url = item.get("hn_url", "")
+                summary = f"HN 토론: {hn_url} (points: {points}, comments: {item.get('num_comments', 0)})"
+                source = urlparse(url).netloc or "news.ycombinator.com"
+            elif tool == "blog":
+                url = item.get("url", "")
+                title = item.get("title", "")
+                published_at = item.get("date")
+                score = 0.0
+                summary = item.get("description", "")
+                source = item.get("source") or urlparse(url).netloc
+            else:
+                continue
+
+            if not url or not title:
+                continue
+
+            if category == "real_world_usecases":
+                score += 0.3
+            if not published_at:
+                score -= 0.5
+
+            candidates.append({
+                "title": title,
+                "url": url,
+                "source": source,
+                "published_at": published_at,
+                "summary": summary,
+                "key_facts": [],
+                "why_it_matters": "",
+                "topic_type": topic_type,
+                "category": category,
+                "score": round(score, 3),
+                "fetched": False,
+            })
+
+    return candidates
