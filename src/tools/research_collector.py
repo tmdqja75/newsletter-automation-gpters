@@ -400,3 +400,96 @@ def _persist_artifacts(publication_date: str, raw_results: list[dict], candidate
             errors.append(f"artifacts: failed to write {filename}: {exc}")
 
     return errors
+
+
+def _collect_weekly_research_core(
+    publication_date: str,
+    max_search_results: int = 20,
+    max_fetches: int = 8,
+    max_chars_per_source: int = 1500,
+    summarizer=None,
+) -> dict:
+    """Run the full deterministic research collection pipeline.
+
+    Returns a dict with keys: publication_date, candidates, total_found,
+    total_fetched, errors.
+    """
+    if summarizer is None:
+        summarizer = _default_summarizer
+
+    errors: list[str] = []
+
+    query_plan = _build_query_plan(publication_date)
+    raw_results, search_errors = _run_searches(query_plan, publication_date)
+    errors.extend(search_errors)
+
+    candidates = _normalize_candidates(raw_results)
+    total_found = len(candidates)
+
+    candidates = _dedupe_candidates(candidates)
+    candidates = _date_filter(candidates, publication_date)
+    candidates = _rank_and_truncate(candidates, max_search_results)
+
+    fetched_content = _fetch_top_candidates(candidates, max_fetches, max_chars_per_source)
+    total_fetched = len(fetched_content)
+
+    errors.extend(_summarize_candidates(candidates, fetched_content, summarizer))
+    errors.extend(_persist_artifacts(publication_date, raw_results, candidates))
+
+    return {
+        "publication_date": publication_date,
+        "candidates": candidates,
+        "total_found": total_found,
+        "total_fetched": total_fetched,
+        "errors": errors,
+    }
+
+
+def collect_weekly_research(
+    publication_date: str,
+    max_search_results: int = 20,
+    max_fetches: int = 8,
+    max_chars_per_source: int = 1500,
+) -> str:
+    """Collect and compact this week's AI/LLM research candidates.
+
+    Searches AI news (Tavily), Hacker News, and official AI lab blogs across
+    a fixed set of research categories, deduplicates and date-filters the
+    results, fetches and summarizes the top-ranked candidates, and persists
+    raw and structured artifacts under artifacts/research/{publication_date}/.
+
+    Args:
+        publication_date: Newsletter publication date in YYYY-MM-DD format.
+        max_search_results: Maximum number of candidates to keep after
+            ranking (default: 20).
+        max_fetches: Maximum number of candidates to fetch full content for
+            (default: 8).
+        max_chars_per_source: Maximum characters of fetched content per
+            source used for summarization (default: 1500).
+
+    Returns:
+        JSON string with keys: publication_date, candidates, total_found,
+        total_fetched, and errors (omitted if empty). Each candidate has:
+        title, url, source, published_at, summary, key_facts, why_it_matters,
+        topic_type, category, score, fetched.
+    """
+    try:
+        result = _collect_weekly_research_core(
+            publication_date,
+            max_search_results=max_search_results,
+            max_fetches=max_fetches,
+            max_chars_per_source=max_chars_per_source,
+        )
+    except Exception as exc:
+        return json.dumps({
+            "publication_date": publication_date,
+            "candidates": [],
+            "total_found": 0,
+            "total_fetched": 0,
+            "errors": [f"collect_weekly_research: {exc}"],
+        }, ensure_ascii=False, indent=2)
+
+    if not result.get("errors"):
+        result.pop("errors", None)
+
+    return json.dumps(result, ensure_ascii=False, indent=2)

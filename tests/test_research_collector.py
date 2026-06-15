@@ -13,6 +13,8 @@ from src.tools.research_collector import (
     _fetch_top_candidates,
     _summarize_candidates,
     _persist_artifacts,
+    _collect_weekly_research_core,
+    collect_weekly_research,
 )
 
 
@@ -374,3 +376,83 @@ def test_persist_artifacts_writes_expected_files(tmp_path, monkeypatch):
 
     assert saved_raw == raw_results
     assert saved_candidates == candidates
+
+
+def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    def fake_search_ai_news(query, max_results=10, article_date=None):
+        return json.dumps([
+            {"title": "AI News", "url": "https://example.com/news", "content": "snippet", "score": 0.8}
+        ])
+
+    def fake_search_hackernews(query, num_results=10, publication_date=None):
+        return json.dumps([])
+
+    def fake_fetch_official_blog_posts(publication_date):
+        return json.dumps({
+            "publication_date": publication_date,
+            "date_range": {"start": "2026-06-03", "end": "2026-06-17"},
+            "posts": {"openai": [], "anthropic": [], "deepmind": []},
+            "total_count": 0,
+        })
+
+    def fake_fetch_article_content(url):
+        return json.dumps({"url": url, "domain": "example.com", "title": "AI News",
+                            "description": "", "content": "full content " * 50})
+
+    def fake_summarizer(items):
+        return [
+            {"url": item["url"], "summary": "요약", "key_facts": ["fact"],
+             "why_it_matters": "중요", "topic_type": "main"}
+            for item in items
+        ]
+
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews", fake_search_hackernews)
+    monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
+    monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
+
+    result = _collect_weekly_research_core("2026-06-17", summarizer=fake_summarizer)
+
+    assert result["publication_date"] == "2026-06-17"
+    assert result["total_found"] > 0
+    assert result["total_fetched"] > 0
+    assert result["candidates"][0]["summary"] == "요약"
+
+    artifacts_dir = tmp_path / "artifacts" / "research" / "2026-06-17"
+    assert (artifacts_dir / "raw_search_results.json").exists()
+    assert (artifacts_dir / "candidates.json").exists()
+
+
+def test_collect_weekly_research_wrapper_returns_valid_json_on_search_failure(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    def boom(*args, **kwargs):
+        raise ConnectionError("network down")
+
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
+    monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
+
+    output = collect_weekly_research("2026-06-17")
+    parsed = json.loads(output)
+
+    assert parsed["publication_date"] == "2026-06-17"
+    assert parsed["candidates"] == []
+    assert parsed["errors"]
+
+
+def test_collect_weekly_research_wrapper_total_failure_returns_valid_json(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("catastrophic")
+
+    monkeypatch.setattr("src.tools.research_collector._build_query_plan", boom)
+
+    output = collect_weekly_research("2026-06-17")
+    parsed = json.loads(output)
+
+    assert parsed["candidates"] == []
+    assert parsed["errors"]
