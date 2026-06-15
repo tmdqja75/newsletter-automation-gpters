@@ -12,6 +12,7 @@ from src.tools.research_collector import (
     _rank_and_truncate,
     _fetch_top_candidates,
     _summarize_candidates,
+    _persist_artifacts,
 )
 
 
@@ -349,3 +350,27 @@ def test_summarize_candidates_noop_when_nothing_fetched():
 
     assert errors == []
     assert candidates[0]["summary"] == "snippet a"
+
+
+def test_persist_artifacts_writes_expected_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    raw_results = [{"category": "model_releases", "tool": "tavily", "query": "q", "items": []}]
+    candidates = [{"title": "A", "url": "https://example.com/a", "score": 1.0}]
+
+    errors = _persist_artifacts("2026-06-17", raw_results, candidates)
+
+    assert errors == []
+
+    artifacts_dir = tmp_path / "artifacts" / "research" / "2026-06-17"
+    raw_path = artifacts_dir / "raw_search_results.json"
+    candidates_path = artifacts_dir / "candidates.json"
+
+    assert raw_path.exists()
+    assert candidates_path.exists()
+
+    saved_raw = json.loads(raw_path.read_text(encoding="utf-8"))
+    saved_candidates = json.loads(candidates_path.read_text(encoding="utf-8"))
+
+    assert saved_raw == raw_results
+    assert saved_candidates == candidates

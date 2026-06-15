@@ -371,3 +371,32 @@ def _summarize_candidates(candidates: list[dict], fetched_content: dict[str, str
             candidate["why_it_matters"] = ""
 
     return errors
+
+
+def _persist_artifacts(publication_date: str, raw_results: list[dict], candidates: list[dict]) -> list[str]:
+    """Write raw_search_results.json and candidates.json under
+    artifacts/research/{publication_date}/.
+
+    Returns a list of error messages (empty on success). Never raises.
+    """
+    errors: list[str] = []
+    artifacts_dir = Path("artifacts") / "research" / publication_date
+
+    try:
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        return [f"artifacts: failed to create directory: {exc}"]
+
+    for filename, data in (
+        ("raw_search_results.json", raw_results),
+        ("candidates.json", candidates),
+    ):
+        try:
+            (artifacts_dir / filename).write_text(
+                json.dumps(data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            errors.append(f"artifacts: failed to write {filename}: {exc}")
+
+    return errors
