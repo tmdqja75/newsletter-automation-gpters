@@ -64,3 +64,49 @@ def _build_query_plan(publication_date: str) -> list[dict]:
             query = query.format(**fmt_kwargs)
         plan.append({"category": entry["category"], "tool": entry["tool"], "query": query})
     return plan
+
+
+def _run_searches(query_plan: list[dict], publication_date: str) -> tuple[list[dict], list[str]]:
+    """Execute the query plan and return (raw_results, errors).
+
+    Each raw result is a dict: {"category", "tool", "query", "items"}.
+    Per-query failures are captured in errors; that query's items become [].
+    """
+    raw_results: list[dict] = []
+    errors: list[str] = []
+
+    for entry in query_plan:
+        category = entry["category"]
+        tool = entry["tool"]
+        query = entry["query"]
+        items: list[dict] = []
+
+        try:
+            if tool == "tavily":
+                parsed = json.loads(search_ai_news(query, max_results=6, article_date=publication_date))
+                if isinstance(parsed, dict) and "error" in parsed:
+                    errors.append(f"{category}/{tool}: {parsed['error']}")
+                elif isinstance(parsed, list):
+                    items = parsed
+            elif tool == "hn":
+                parsed = json.loads(search_hackernews(query, num_results=6, publication_date=publication_date))
+                if isinstance(parsed, dict) and "error" in parsed:
+                    errors.append(f"{category}/{tool}: {parsed['error']}")
+                elif isinstance(parsed, list):
+                    items = parsed
+            elif tool == "blog":
+                blog_result = json.loads(fetch_official_blog_posts(publication_date))
+                for blog_error in blog_result.get("errors", []):
+                    errors.append(f"official_blogs: {blog_error}")
+                items = [
+                    post
+                    for source_posts in blog_result.get("posts", {}).values()
+                    for post in source_posts
+                ]
+        except Exception as exc:
+            errors.append(f"{category}/{tool}: {exc}")
+            items = []
+
+        raw_results.append({"category": category, "tool": tool, "query": query, "items": items})
+
+    return raw_results, errors

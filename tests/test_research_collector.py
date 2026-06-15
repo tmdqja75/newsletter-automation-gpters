@@ -5,6 +5,7 @@ import json
 from src.tools.research_collector import (
     RESEARCH_QUERY_PLAN,
     _build_query_plan,
+    _run_searches,
 )
 
 
@@ -51,3 +52,62 @@ def test_build_query_plan_fills_placeholders():
     # official_blogs has no query
     blog_entry = by_category["official_blogs"][0]
     assert blog_entry["query"] is None
+
+
+def test_run_searches_collects_items_and_tags_category(monkeypatch):
+    def fake_search_ai_news(query, max_results=10, article_date=None):
+        return json.dumps([
+            {"title": "Tavily result", "url": "https://example.com/a", "content": "snippet", "score": 0.9}
+        ])
+
+    def fake_search_hackernews(query, num_results=10, publication_date=None):
+        return json.dumps([
+            {"title": "HN result", "url": "https://example.com/b",
+             "hn_url": "https://news.ycombinator.com/item?id=1",
+             "points": 80, "num_comments": 10, "author": "x",
+             "created_at": "2026-06-10T00:00:00.000Z"}
+        ])
+
+    def fake_fetch_official_blog_posts(publication_date):
+        return json.dumps({
+            "publication_date": publication_date,
+            "date_range": {"start": "2026-06-10", "end": "2026-06-17"},
+            "posts": {
+                "openai": [{"source": "openai", "title": "Blog post", "url": "https://openai.com/news/x",
+                             "date": "2026-06-12", "category": "Research", "description": "desc"}],
+                "anthropic": [],
+                "deepmind": [],
+            },
+            "total_count": 1,
+        })
+
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews", fake_search_hackernews)
+    monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
+
+    plan = _build_query_plan("2026-06-17")
+    raw_results, errors = _run_searches(plan, "2026-06-17")
+
+    assert errors == []
+    tavily_entries = [r for r in raw_results if r["tool"] == "tavily"]
+    assert tavily_entries and all(r["items"] for r in tavily_entries)
+    hn_entries = [r for r in raw_results if r["tool"] == "hn"]
+    assert hn_entries and all(r["items"] for r in hn_entries)
+    blog_entries = [r for r in raw_results if r["tool"] == "blog"]
+    assert len(blog_entries) == 1
+    assert blog_entries[0]["items"][0]["title"] == "Blog post"
+
+
+def test_run_searches_captures_errors_without_raising(monkeypatch):
+    def boom(*args, **kwargs):
+        raise ConnectionError("network down")
+
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
+    monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
+
+    plan = _build_query_plan("2026-06-17")
+    raw_results, errors = _run_searches(plan, "2026-06-17")
+
+    assert len(errors) == len(plan)
+    assert all(r["items"] == [] for r in raw_results)
