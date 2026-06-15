@@ -1,18 +1,139 @@
 """Main orchestrator agent for newsletter automation."""
 
+import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from .config import ORCHESTRATOR_PROMPT, ARTICLES_DIR, ANTHROPIC_API_KEY, TAVILY_API_KEY
+from .config import (
+    ORCHESTRATOR_PROMPT,
+    ARTICLES_DIR,
+    ANTHROPIC_API_KEY,
+    TAVILY_API_KEY,
+    MODEL_NAME,
+    to_model_spec,
+)
 from .agents import research_subagent, topic_selection_agent, tone_agent
 from .tools.interrupt_tools import request_topic_selection
 from .utils.merge_articles import merge_newsletter
+
+
+def _agent_model_spec() -> str:
+    """Return a DeepAgents-compatible model spec from MODEL_NAME."""
+    return to_model_spec(MODEL_NAME)
+
+
+def _increment_count(counter: dict[str, int], key: str, amount: int = 1) -> None:
+    counter[key] = counter.get(key, 0) + amount
+
+
+def _extract_usage_metadata(message: Any) -> dict[str, int]:
+    """Extract token usage from LangChain messages when providers expose it."""
+    usage = getattr(message, "usage_metadata", None)
+    if not usage:
+        response_metadata = getattr(message, "response_metadata", None) or {}
+        usage = response_metadata.get("token_usage") or response_metadata.get("usage")
+
+    if not isinstance(usage, dict):
+        return {}
+
+    token_usage: dict[str, int] = {}
+    for source_key, target_key in (
+        ("input_tokens", "input_tokens"),
+        ("output_tokens", "output_tokens"),
+        ("total_tokens", "total_tokens"),
+        ("prompt_tokens", "input_tokens"),
+        ("completion_tokens", "output_tokens"),
+    ):
+        value = usage.get(source_key)
+        if isinstance(value, int):
+            token_usage[target_key] = token_usage.get(target_key, 0) + value
+    return token_usage
+
+
+class NewsletterRunMetrics:
+    """Lightweight generation telemetry persisted beside newsletter outputs."""
+
+    def __init__(self, date_dir: str, mode: str, model: str):
+        self.date_dir = date_dir
+        self._started = time.perf_counter()
+        self.data: dict[str, Any] = {
+            "date_dir": date_dir,
+            "mode": mode,
+            "model": model,
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+            "status": "running",
+            "duration_seconds": None,
+            "stream_events": 0,
+            "model_events": 0,
+            "tool_events": 0,
+            "interrupt_events": 0,
+            "model_messages": 0,
+            "model_messages_with_usage": 0,
+            "assistant_output_chars": 0,
+            "final_content_chars": 0,
+            "tool_calls": {},
+            "tool_results": {},
+            "token_usage": {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            },
+        }
+
+    def record_stream_event(self, event: dict[str, Any]) -> None:
+        self.data["stream_events"] += 1
+        for key in event:
+            if key == "model" or key == "agent":
+                self.data["model_events"] += 1
+            elif key == "tools":
+                self.data["tool_events"] += 1
+            elif key == "__interrupt__":
+                self.data["interrupt_events"] += 1
+
+    def record_model_message(self, message: Any) -> None:
+        self.data["model_messages"] += 1
+
+        content = getattr(message, "content", "")
+        if content:
+            self.data["assistant_output_chars"] += len(str(content))
+
+        usage = _extract_usage_metadata(message)
+        if usage:
+            self.data["model_messages_with_usage"] += 1
+            for key, value in usage.items():
+                self.data["token_usage"][key] += value
+
+        for tool_call in getattr(message, "tool_calls", None) or []:
+            tool_name = tool_call.get("name", "unknown")
+            _increment_count(self.data["tool_calls"], tool_name)
+
+    def record_tool_result(self, tool_name: str) -> None:
+        _increment_count(self.data["tool_results"], tool_name or "tool")
+
+    def save(self, status: str, final_content: Any = None, error: str | None = None) -> str:
+        self.data["status"] = status
+        self.data["completed_at"] = datetime.now().isoformat(timespec="seconds")
+        self.data["duration_seconds"] = round(time.perf_counter() - self._started, 2)
+        if final_content:
+            self.data["final_content_chars"] = len(str(final_content))
+        if error:
+            self.data["error"] = error
+
+        metrics_path = Path(ARTICLES_DIR) / self.date_dir / "run_metrics.json"
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        metrics_path.write_text(
+            json.dumps(self.data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return str(metrics_path)
 
 
 def validate_api_keys() -> bool:
@@ -91,8 +212,9 @@ def create_newsletter_agent(target_date: str, articles_root: str = None, use_hit
 """
 
     # Build agent configuration
+    model_spec = _agent_model_spec()
     agent_config = {
-        "model": "anthropic:claude-sonnet-4-6",
+        "model": model_spec,
         "system_prompt": system_prompt,
         "tools": tools,
         "subagents": [research_subagent, topic_selection_agent, tone_agent],
@@ -145,17 +267,20 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
 
     print("🤖 에이전트 실행 중 (스트리밍)...")
     print()
+    metrics = NewsletterRunMetrics(target_date, "full", _agent_model_spec())
+    final_content = None
 
     try:
         config = {"configurable": {"thread_id": f"newsletter-{target_date}a"}}
-        final_content = None
 
         for event in agent.stream({"messages": [{"role": "user", "content": prompt}]}, config=config):
+            metrics.record_stream_event(event)
             for key, value in event.items():
                 # Handle model output (agent responses)
                 if key == "model":
                     if "messages" in value:
                         for msg in value["messages"]:
+                            metrics.record_model_message(msg)
                             if hasattr(msg, 'content') and msg.content:
                                 final_content = msg.content
                                 # Show progress but truncate very long responses
@@ -173,12 +298,14 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
                     if "messages" in value:
                         for msg in value["messages"]:
                             tool_name = getattr(msg, 'name', 'tool')
+                            metrics.record_tool_result(tool_name)
                             print(f"✅ {tool_name} 완료")
 
                 # Handle agent events (older format)
                 elif key == "agent":
                     if "messages" in value:
                         for msg in value["messages"]:
+                            metrics.record_model_message(msg)
                             if hasattr(msg, 'content') and msg.content:
                                 final_content = msg.content
 
@@ -207,10 +334,12 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
                                     Command(resume=resume_value),
                                     config=config,
                                 ):
+                                    metrics.record_stream_event(event)
                                     for k, v in event.items():
                                         if k == "model":
                                             if "messages" in v:
                                                 for msg in v["messages"]:
+                                                    metrics.record_model_message(msg)
                                                     if hasattr(msg, 'content') and msg.content:
                                                         final_content = msg.content
                                                         if len(msg.content) > 500:
@@ -223,6 +352,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
                                         elif k == "tools":
                                             if "messages" in v:
                                                 for msg in v["messages"]:
+                                                    metrics.record_tool_result(getattr(msg, 'name', 'tool'))
                                                     print(f"✅ {getattr(msg, 'name', 'tool')} 완료")
                                         elif k == "__interrupt__":
                                             # Handle subsequent interrupts (e.g., after reject)
@@ -242,14 +372,17 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
                                                         retry_value = f"선택된 토픽 번호: {retry_input}"
                                                     # Resume again
                                                     for ev in agent.stream(Command(resume=retry_value), config=config):
+                                                        metrics.record_stream_event(ev)
                                                         for ek, ev_val in ev.items():
                                                             if ek == "model" and "messages" in ev_val:
                                                                 for msg in ev_val["messages"]:
+                                                                    metrics.record_model_message(msg)
                                                                     if hasattr(msg, 'content') and msg.content:
                                                                         final_content = msg.content
                                                                         print(f"📝 {str(msg.content)[:200]}...")
                                                             elif ek == "tools" and "messages" in ev_val:
                                                                 for msg in ev_val["messages"]:
+                                                                    metrics.record_tool_result(getattr(msg, 'name', 'tool'))
                                                                     print(f"✅ {getattr(msg, 'name', 'tool')} 완료")
                                                         sys.stdout.flush()
                                     sys.stdout.flush()
@@ -270,10 +403,15 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False, u
         else:
             print("(응답 없음)")
 
-        return {"final_content": final_content}
+        metrics_path = metrics.save("completed", final_content=final_content)
+        print(f"📊 실행 메트릭 저장: {metrics_path}")
+
+        return {"final_content": final_content, "metrics_path": metrics_path}
 
     except Exception as e:
+        metrics_path = metrics.save("failed", final_content=final_content, error=str(e))
         print(f"\n❌ 에이전트 실행 중 오류: {e}", file=sys.stderr)
+        print(f"📊 실행 메트릭 저장: {metrics_path}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return None
@@ -321,16 +459,19 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False, user_topics:
 
     print("🤖 에이전트 실행 중...")
     print()
+    metrics = NewsletterRunMetrics(target_date, "quick", _agent_model_spec())
+    final_content = None
 
     try:
         config = {"configurable": {"thread_id": f"quick-test-{target_date}"}}
-        final_content = None
 
         for event in agent.stream({"messages": [{"role": "user", "content": prompt}]}, config=config):
+            metrics.record_stream_event(event)
             for key, value in event.items():
                 if key == "model":
                     if "messages" in value:
                         for msg in value["messages"]:
+                            metrics.record_model_message(msg)
                             if hasattr(msg, 'content') and msg.content:
                                 final_content = msg.content
                                 print(f"📝 {str(msg.content)[:200]}...")
@@ -341,6 +482,7 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False, user_topics:
                 elif key == "tools":
                     if "messages" in value:
                         for msg in value["messages"]:
+                            metrics.record_tool_result(getattr(msg, 'name', 'tool'))
                             print(f"✅ {getattr(msg, 'name', 'tool')} 완료")
 
             sys.stdout.flush()
@@ -351,10 +493,15 @@ def run_quick_test(target_date: str = None, use_hitl: bool = False, user_topics:
         if final_content:
             print(str(final_content)[:1000])
 
-        return {"final_content": final_content}
+        metrics_path = metrics.save("completed", final_content=final_content)
+        print(f"📊 실행 메트릭 저장: {metrics_path}")
+
+        return {"final_content": final_content, "metrics_path": metrics_path}
 
     except Exception as e:
+        metrics_path = metrics.save("failed", final_content=final_content, error=str(e))
         print(f"\n❌ 오류: {e}", file=sys.stderr)
+        print(f"📊 실행 메트릭 저장: {metrics_path}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return None
