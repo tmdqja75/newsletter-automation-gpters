@@ -9,6 +9,19 @@ from ..config import (
     NEWSLETTER_FOOTER_TEMPLATE,
     ARTICLES_DIR,
 )
+
+EXCLUDED_ARTICLE_FILENAMES = {"newsletter.md", "research_results.md"}
+
+
+def get_article_files(articles_path: Path) -> list[Path]:
+    """Return sorted markdown files that should be included as newsletter articles."""
+    return sorted(
+        file_path
+        for file_path in articles_path.glob("*.md")
+        if file_path.name not in EXCLUDED_ARTICLE_FILENAMES
+    )
+
+
 def extract_title_from_article(content: str) -> str:
     """Extract the main title from an article.
 
@@ -78,9 +91,8 @@ def merge_newsletter(date_dir: str, version: Optional[str] = None) -> str:
     if not articles_path.exists():
         raise ValueError(f"Articles directory not found: {articles_path}")
 
-    # Find and sort article files
-    article_files = sorted(articles_path.glob("*.md"))
-    article_files = [f for f in article_files if f.name != "newsletter.md"]
+    # Find and sort article files, excluding generated research notes/output.
+    article_files = get_article_files(articles_path)
 
     if not article_files:
         raise ValueError(f"No article files found in {articles_path}")
@@ -150,8 +162,7 @@ def preview_newsletter(date_dir: str) -> str:
     if not articles_path.exists():
         return f"Directory not found: {articles_path}"
 
-    article_files = sorted(articles_path.glob("*.md"))
-    article_files = [f for f in article_files if f.name != "newsletter.md"]
+    article_files = get_article_files(articles_path)
 
     preview_lines = [f"Newsletter Preview for {date_dir}", "=" * 40, ""]
 

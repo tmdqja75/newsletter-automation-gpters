@@ -7,7 +7,7 @@ def request_topic_selection(topic_candidates: str) -> str:
     """Present topic candidates to the user and wait for their selection.
 
     Args:
-        topic_candidates: Formatted string of numbered topic candidates (1-10)
+        topic_candidates: a markdown string containing the list of topic candidates for selection.
 
     Returns:
         User's selection result as a string
