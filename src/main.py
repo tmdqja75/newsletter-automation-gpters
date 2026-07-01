@@ -20,7 +20,7 @@ from .config import (
     MODEL_NAME,
     to_model_spec,
 )
-from .agents import research_subagent, topic_selection_agent, tone_agent
+from .agents import research_subagent, topic_selection_agent, article_writer_agent
 from .tools.interrupt_tools import request_topic_selection
 from .utils.merge_articles import merge_newsletter
 
@@ -203,11 +203,10 @@ def create_newsletter_agent(target_date: str, articles_root: str = None, use_hit
 2. research-agent를 사용하여 최신 AI/LLM 뉴스를 수집하세요. AI 에이전트나 LLM 관련하여 최근 일주일에 일어난 일들을 위주로 수집해주세요.
 3. research-agent의 결과를 그대로 markdown 파일로 아티클 저장 디렉토리에 저장해 주세요. (research_results.md)
 4. request_topic_selection 도구를 호출하여 사용자에게 토픽 선택을 요청하세요
-5. 사용자가 선택한 토픽에 대해서만 아티클을 작성하세요 (선택 개수는 사용자 자유, research_results.md에 있는 넘버링 기준으로 아티클 주제 선정)
-6. tone-editor를 사용하여 각 아티클을 오토마타 스타일로 교정하세요
-7. 완성된 아티클을 순서대로 저장하세요 (01_[토픽명].md, 02_[토픽명].md, ...)
+5. 사용자가 선택한 모든 토픽에 대해 article-writer를 **동시에(병렬로)** 호출하여 아티클을 작성하세요 (선택 개수는 사용자 자유, research_results.md에 있는 넘버링 기준으로 아티클 주제·요약·출처 URL을 전달). 토픽별로 순차 호출하지 말고, 한 번의 turn에서 선택된 토픽 수만큼 article-writer tool call을 함께 내보내세요.
+6. 완성된 아티클을 순서대로 저장하세요 (01_[토픽명].md, 02_[토픽명].md, ...)
 - 스터디 카페 토픽이 포함되어 있다면 마지막 번호로 study_cafe.md로 저장하세요
-8. merge_newsletter를 호출하여 최종 뉴스레터를 생성하세요
+7. merge_newsletter를 호출하여 최종 뉴스레터를 생성하세요
 
 아티클 저장 디렉토리: articles/{target_date}/
 """
@@ -218,7 +217,7 @@ def create_newsletter_agent(target_date: str, articles_root: str = None, use_hit
         "model": model_spec,
         "system_prompt": system_prompt,
         "tools": tools,
-        "subagents": [research_subagent, tone_agent],
+        "subagents": [research_subagent, article_writer_agent],
         "backend": FilesystemBackend(root_dir=".", virtual_mode=True),
     }
 
