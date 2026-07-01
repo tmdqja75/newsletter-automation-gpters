@@ -3,7 +3,7 @@
 from src.config import (
     RESEARCH_AGENT_PROMPT,
     ORCHESTRATOR_PROMPT,
-    TONE_EDITOR_PROMPT,
+    ARTICLE_WRITER_PROMPT,
     TOPIC_SELECTOR_PROMPT,
 )
 
@@ -17,17 +17,22 @@ def test_research_prompt_requires_fetch():
     assert "반드시" in RESEARCH_AGENT_PROMPT or "필수" in RESEARCH_AGENT_PROMPT
 
 
-def test_orchestrator_prompt_requires_citations():
-    """Orchestrator must be instructed to cite sources inline."""
-    assert "출처" in ORCHESTRATOR_PROMPT
+def test_orchestrator_calls_article_writer_in_parallel():
+    """Orchestrator must fan out article-writer calls in parallel, not sequentially."""
+    assert "article-writer" in ORCHESTRATOR_PROMPT
+    assert "병렬" in ORCHESTRATOR_PROMPT
+
+
+def test_article_writer_prompt_requires_citations():
+    """Article writer must be instructed to cite sources inline and not invent facts."""
+    assert "출처" in ARTICLE_WRITER_PROMPT
     # Must prohibit inventing facts
-    assert "만들어내거나" in ORCHESTRATOR_PROMPT or "추측" in ORCHESTRATOR_PROMPT
+    assert "만들어내거나" in ARTICLE_WRITER_PROMPT or "추측" in ARTICLE_WRITER_PROMPT
 
 
-def test_tone_editor_preserves_citations():
-    """Tone editor must be told not to remove inline citations."""
-    assert "출처" in TONE_EDITOR_PROMPT
-    assert "제거" in TONE_EDITOR_PROMPT or "수정하지" in TONE_EDITOR_PROMPT
+def test_article_writer_preserves_citations():
+    """Article writer must be told not to remove inline citations."""
+    assert "제거" in ARTICLE_WRITER_PROMPT or "수정하지" in ARTICLE_WRITER_PROMPT
 
 
 # --- Problem 2: Real-world use case discovery ---
