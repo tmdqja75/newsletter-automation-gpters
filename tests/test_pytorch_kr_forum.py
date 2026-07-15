@@ -321,7 +321,10 @@ def test_live_pytorch_kr_forum_returns_structured_posts():
     payload = json.loads(search_pytorch_kr_forum(publication_date))
 
     assert payload["publication_date"] == publication_date
-    assert payload["posts"]
+    assert payload["errors"] == []
+    if not payload["posts"]:
+        pytest.skip("PyTorch-KR forum returned no posts in the current seven-day window")
+
     post = payload["posts"][0]
     assert post["title"]
     assert post["forum_url"].startswith("https://discuss.pytorch.kr/t/")

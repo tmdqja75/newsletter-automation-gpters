@@ -45,10 +45,23 @@ def test_research_prompt_has_usecase_category():
 
 
 def test_research_prompt_explains_forum_and_primary_source_urls():
-    """Forum candidates need both community context and primary-source citation guidance."""
-    assert "original_url" in RESEARCH_AGENT_PROMPT
+    """Forum candidates preserve community context while prioritizing distinct primary sources."""
+    # The optional field and community context are explicit in the candidate contract.
+    assert "선택적으로 original_url" in RESEARCH_AGENT_PROMPT
     assert "포럼 출처 URL" in RESEARCH_AGENT_PROMPT
-    assert "원문/주요 출처 URL" in RESEARCH_AGENT_PROMPT
+
+    # The report keeps mandatory fields consecutively numbered even when a
+    # distinct primary source is absent.
+    assert "3. 출처 URL" in RESEARCH_AGENT_PROMPT
+    assert "4. 발표/게시 날짜" in RESEARCH_AGENT_PROMPT
+    assert "5. 중요도" in RESEARCH_AGENT_PROMPT
+    assert "6. 카테고리" in RESEARCH_AGENT_PROMPT
+
+    # A primary/original URL is separately reported only when it differs from
+    # the forum URL, and it takes priority for factual verification.
+    assert "- 원문/주요 출처 URL: <original_url>" in RESEARCH_AGENT_PROMPT
+    assert "original_url이 포럼 URL과 다를 때만 표시" in RESEARCH_AGENT_PROMPT
+    assert "사실 검증은 이 URL을 우선 사용" in RESEARCH_AGENT_PROMPT
 
 
 def test_topic_selector_prioritizes_usecases():

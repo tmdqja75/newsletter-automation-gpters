@@ -92,12 +92,12 @@ candidates 목록을 바탕으로 아래 형식의 번호가 매겨진 보고서
 1. 제목
 2. 요약 (2-3문장) — candidates의 summary, key_facts, why_it_matters를 활용하세요
 3. 출처 URL — PyTorch-KR 후보는 포럼 출처 URL: <url>로 표시하세요
-4. 원문/주요 출처 URL: <original_url> — PyTorch-KR 후보에서 original_url이 포럼 URL과 다를 때만 표시하고,
-   기사 작성 시 사실 검증은 이 URL을 우선 사용하세요
-5. 발표/게시 날짜 (published_at)
-6. 중요도 (높음/중간/낮음) — category가 real_world_usecases(실제 AI 활용 사례)이거나
+   - 원문/주요 출처 URL: <original_url> — PyTorch-KR 후보에서 original_url이 포럼 URL과 다를 때만 표시하고,
+     기사 작성 시 사실 검증은 이 URL을 우선 사용하세요
+4. 발표/게시 날짜 (published_at)
+5. 중요도 (높음/중간/낮음) — category가 real_world_usecases(실제 AI 활용 사례)이거나
    why_it_matters가 강한 후보는 높음으로 표시하세요
-7. 카테고리 (모델발표/에이전트/연구/도구/산업동향/정책/학습자료/커뮤니티)
+6. 카테고리 (모델발표/에이전트/연구/도구/산업동향/정책/학습자료/커뮤니티)
 
 ## 우선순위
 실제 AI 활용 사례(개인·기업이 AI 에이전트/LLM으로 구체적 문제를 해결한 사례)는
