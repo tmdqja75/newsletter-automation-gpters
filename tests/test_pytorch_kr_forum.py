@@ -48,6 +48,8 @@ SAMPLE_INELIGIBLE_LINKS_HTML = """\
 <a href="https://discuss.pytorch.kr/signup">가입</a>
 <a href="https://pytorch.kr/">PyTorchKR 홈</a>
 <a href="https://t.me/pytorchkr">텔레그램</a>
+<a href="https://telegram.me/pytorchkr">텔레그램</a>
+<a href="https://web.telegram.org/a/#-1001234567890">텔레그램</a>
 <footer>
   <a href="https://discuss-noti.pytorch.kr/">알림</a>
   <a href="https://www.discourse.org">Powered by Discourse</a>

@@ -25,6 +25,8 @@ PYTORCH_KR_HEADERS = {
 _PYTORCH_KR_BLOCKED_HOSTS = {
     "pytorch.kr",
     "t.me",
+    "telegram.me",
+    "telegram.org",
     "discuss-noti.pytorch.kr",
     "www.discourse.org",
 }
@@ -176,7 +178,7 @@ def _is_pytorch_kr_primary_source(url: object) -> bool:
         return False
     if host == "discuss.pytorch.kr" or host.endswith(".pytorch.kr"):
         return False
-    if host in _PYTORCH_KR_BLOCKED_HOSTS or host.endswith(".t.me"):
+    if host in _PYTORCH_KR_BLOCKED_HOSTS or host.endswith((".t.me", ".telegram.me", ".telegram.org")):
         return False
     if host == "discourse.org" or host.endswith(".discourse.org"):
         return False
