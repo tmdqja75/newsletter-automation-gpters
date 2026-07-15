@@ -44,6 +44,13 @@ def test_research_prompt_has_usecase_category():
     assert "Show HN" in RESEARCH_AGENT_PROMPT
 
 
+def test_research_prompt_explains_forum_and_primary_source_urls():
+    """Forum candidates need both community context and primary-source citation guidance."""
+    assert "original_url" in RESEARCH_AGENT_PROMPT
+    assert "포럼 출처 URL" in RESEARCH_AGENT_PROMPT
+    assert "원문/주요 출처 URL" in RESEARCH_AGENT_PROMPT
+
+
 def test_topic_selector_prioritizes_usecases():
     """Topic selector must be told to rank use-case stories highly."""
     assert "활용 사례" in TOPIC_SELECTOR_PROMPT or "실제" in TOPIC_SELECTOR_PROMPT

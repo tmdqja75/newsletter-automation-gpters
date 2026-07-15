@@ -1,9 +1,11 @@
 """Red tests defining the PyTorch-KR Discourse research-source adapter."""
 
 import json
+from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+import pytest
 
 from src.tools.search_tools import (
     _extract_pytorch_kr_post_fields,
@@ -55,6 +57,12 @@ SAMPLE_INELIGIBLE_LINKS_HTML = """\
   <a href="https://www.discourse.org">Powered by Discourse</a>
   <a href="https://example.com/footer-source">외부 원문처럼 보이는 푸터 링크</a>
 </footer>
+"""
+
+SAMPLE_FOOTER_ONEBOX_HTML = """\
+<p>외부 원문이 없는 게시글입니다.</p>
+<p>토론은 포럼에서 이어집니다.</p>
+<footer><aside data-onebox-src="https://github.com/example/footer-link"></aside></footer>
 """
 
 
@@ -187,6 +195,14 @@ def test_rejects_internal_media_anchor_signup_home_telegram_and_footer_links():
     assert original_url == forum_url
 
 
+def test_rejects_onebox_link_from_forum_footer():
+    forum_url = f"{FORUM_BASE_URL}/t/example/105"
+
+    _, original_url = _extract_pytorch_kr_post_fields(SAMPLE_FOOTER_ONEBOX_HTML, forum_url)
+
+    assert original_url == forum_url
+
+
 # ---------------------------------------------------------------------------
 # Paginated Discourse collection and error isolation
 # ---------------------------------------------------------------------------
@@ -295,3 +311,20 @@ def test_public_wrapper_serializes_top_level_http_failure(monkeypatch):
     assert payload["posts"] == []
     assert isinstance(payload["errors"], list)
     assert payload["errors"]
+
+
+@pytest.mark.integration
+def test_live_pytorch_kr_forum_returns_structured_posts():
+    publication_date = datetime.now().strftime("%Y-%m-%d")
+    earliest_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    payload = json.loads(search_pytorch_kr_forum(publication_date))
+
+    assert payload["publication_date"] == publication_date
+    assert payload["posts"]
+    post = payload["posts"][0]
+    assert post["title"]
+    assert post["forum_url"].startswith("https://discuss.pytorch.kr/t/")
+    assert earliest_date <= post["published_at"] <= publication_date
+    assert post["content"]
+    assert post["original_url"].startswith("http")

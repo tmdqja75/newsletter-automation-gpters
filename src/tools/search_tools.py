@@ -30,6 +30,12 @@ _PYTORCH_KR_BLOCKED_HOSTS = {
     "discuss-noti.pytorch.kr",
     "www.discourse.org",
 }
+_PYTORCH_KR_SIGNUP_PATHS = {
+    "/signup",
+    "/register",
+    "/login",
+    "/auth",
+}
 _PYTORCH_KR_MEDIA_EXTENSIONS = {
     ".avif", ".gif", ".jpeg", ".jpg", ".mov", ".mp3", ".mp4",
     ".pdf", ".png", ".svg", ".webm", ".webp",
@@ -38,6 +44,7 @@ _PYTORCH_KR_BOILERPLATE_PARAGRAPHS = {
     "powered by discourse",
     "pytorch korea users group",
 }
+
 
 def search_ai_news(query: str, max_results: int = 10, article_date: str | None = None) -> str:
     """Search for AI/LLM related news using Tavily API.
@@ -184,6 +191,8 @@ def _is_pytorch_kr_primary_source(url: object) -> bool:
         return False
     if any(segment in path for segment in ("/upload/", "/uploads/", "/image/", "/images/", "/media/")):
         return False
+    if any(path.startswith(sp) for sp in _PYTORCH_KR_SIGNUP_PATHS):
+        return False
     return not path.endswith(tuple(_PYTORCH_KR_MEDIA_EXTENSIONS))
 
 
@@ -201,12 +210,18 @@ def _extract_pytorch_kr_post_fields(cooked: str, forum_url: str) -> tuple[str, s
             break
 
     for onebox in soup.find_all(attrs={"data-onebox-src": True}):
+        if onebox.find_parent("footer") is not None:
+            continue
+        if onebox.find_parent(class_="footer") is not None:
+            continue
         source_url = onebox.get("data-onebox-src")
         if _is_pytorch_kr_primary_source(source_url):
             return "\n\n".join(paragraphs), source_url.strip()
 
     for anchor in soup.find_all("a", href=True):
         if anchor.find_parent("footer") is not None:
+            continue
+        if anchor.find_parent(class_="footer") is not None:
             continue
         source_url = anchor.get("href")
         if _is_pytorch_kr_primary_source(source_url):
