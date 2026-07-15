@@ -115,6 +115,26 @@ def test_normalize_candidates_preserves_forum_context_and_primary_source():
     }]
 
 
+def test_normalize_candidates_falls_back_to_forum_url_for_falsey_original_url():
+    forum_url = "https://discuss.pytorch.kr/t/forum-item/1"
+
+    for original_url in (None, ""):
+        candidates = _normalize_candidates([{
+            "category": "pytorch_kr_community",
+            "tool": "pytorch_kr",
+            "query": None,
+            "items": [{
+                "title": "Forum Item",
+                "forum_url": forum_url,
+                "original_url": original_url,
+                "content": "첫 문단",
+                "published_at": "2026-06-12",
+            }],
+        }])
+
+        assert candidates[0]["original_url"] == forum_url
+
+
 def test_fetch_top_candidates_uses_prefetched_forum_excerpt_without_refetching(monkeypatch):
     forum_url = "https://discuss.pytorch.kr/t/forum-item/1"
     candidates = [

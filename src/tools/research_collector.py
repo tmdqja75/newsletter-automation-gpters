@@ -177,7 +177,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 score = 0.0
                 summary = item.get("content", "")
                 source = "discuss.pytorch.kr"
-                original_url = item.get("original_url", url)
+                original_url = item.get("original_url") or url
                 prefetched_content = summary
             else:
                 continue
@@ -292,7 +292,7 @@ def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_pe
 
     for candidate in candidates[:max_fetches]:
         prefetched_content = candidate.get("prefetched_content")
-        if prefetched_content:
+        if prefetched_content is not None:
             fetched_content[candidate["url"]] = prefetched_content[:max_chars_per_source]
             candidate["fetched"] = True
             continue
@@ -481,11 +481,10 @@ def collect_weekly_research(
 ) -> str:
     """Collect and compact this week's AI/LLM research candidates.
 
-    Searches AI news (Tavily), Hacker News, official AI lab blogs, and the
-    PyTorch-KR community across a fixed set of research categories,
-    deduplicates and date-filters the results, fetches and summarizes the
-    top-ranked candidates, and persists raw and structured artifacts under
-    artifacts/research/{publication_date}/.
+    Searches AI news (Tavily), Hacker News, and official AI lab blogs across
+    a fixed set of research categories, deduplicates and date-filters the
+    results, fetches and summarizes the top-ranked candidates, and persists
+    raw and structured artifacts under artifacts/research/{publication_date}/.
 
     Args:
         publication_date: Newsletter publication date in YYYY-MM-DD format.
