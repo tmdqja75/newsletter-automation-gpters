@@ -48,6 +48,7 @@ SAMPLE_INELIGIBLE_LINKS_HTML = """\
 <a href="https://discuss.pytorch.kr/uploads/default/original/1X/image.png">업로드 이미지</a>
 <a href="#reply-1">댓글 앵커</a>
 <a href="https://discuss.pytorch.kr/signup">가입</a>
+<a href="https://external.example/signup">외부 서비스 가입</a>
 <a href="https://pytorch.kr/">PyTorchKR 홈</a>
 <a href="https://t.me/pytorchkr">텔레그램</a>
 <a href="https://telegram.me/pytorchkr">텔레그램</a>
@@ -59,10 +60,16 @@ SAMPLE_INELIGIBLE_LINKS_HTML = """\
 </footer>
 """
 
+SAMPLE_DIV_FOOTER_LINK_HTML = """\
+<p>외부 원문이 없는 게시글입니다.</p>
+<p>토론은 포럼에서 이어집니다.</p>
+<div class="footer"><a href="https://external.example/footer-source">외부 원문처럼 보이는 푸터 링크</a></div>
+"""
+
 SAMPLE_FOOTER_ONEBOX_HTML = """\
 <p>외부 원문이 없는 게시글입니다.</p>
 <p>토론은 포럼에서 이어집니다.</p>
-<footer><aside data-onebox-src="https://github.com/example/footer-link"></aside></footer>
+<div class="footer"><aside data-onebox-src="https://github.com/example/footer-link"></aside></div>
 """
 
 
@@ -195,8 +202,16 @@ def test_rejects_internal_media_anchor_signup_home_telegram_and_footer_links():
     assert original_url == forum_url
 
 
-def test_rejects_onebox_link_from_forum_footer():
+def test_rejects_regular_external_anchor_from_div_footer():
     forum_url = f"{FORUM_BASE_URL}/t/example/105"
+
+    _, original_url = _extract_pytorch_kr_post_fields(SAMPLE_DIV_FOOTER_LINK_HTML, forum_url)
+
+    assert original_url == forum_url
+
+
+def test_rejects_onebox_link_from_div_footer():
+    forum_url = f"{FORUM_BASE_URL}/t/example/106"
 
     _, original_url = _extract_pytorch_kr_post_fields(SAMPLE_FOOTER_ONEBOX_HTML, forum_url)
 

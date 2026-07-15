@@ -159,3 +159,26 @@ def test_fetch_top_candidates_uses_prefetched_forum_excerpt_without_refetching(m
     assert fetched_content == {forum_url: "첫 문단\n\n둘째"}
     assert candidates[0]["fetched"] is True
     assert calls == []
+
+
+def test_fetch_top_candidates_keeps_empty_prefetched_content_without_refetching(monkeypatch):
+    forum_url = "https://discuss.pytorch.kr/t/forum-item/empty"
+    candidates = [{
+        "title": "Forum Item",
+        "url": forum_url,
+        "prefetched_content": "",
+        "fetched": False,
+    }]
+    calls = []
+
+    def fake_fetch_article_content(url):
+        calls.append(url)
+        return json.dumps({"content": "unexpected generic fetch"})
+
+    monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
+
+    fetched_content = _fetch_top_candidates(candidates, max_fetches=1, max_chars_per_source=8)
+
+    assert fetched_content == {forum_url: ""}
+    assert candidates[0]["fetched"] is True
+    assert calls == []
