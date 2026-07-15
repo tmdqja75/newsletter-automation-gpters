@@ -64,19 +64,19 @@
       },
       {
         "source": "openai",
-        "title": "GPT-5.3-Codex System Card",
-        "url": "https://openai.com/index/gpt-5-3-codex-system-card",
-        "date": "2026-02-05",
-        "category": "Publication",
-        "description": "GPT‑5.3-Codex is the most capable agentic coding model to date, combining the frontier coding performance of GPT‑5.2-Codex with the reasoning and professional knowledge capabilities of GPT‑5.2. "
-      },
-      {
-        "source": "openai",
         "title": "Introducing GPT-5.3-Codex",
         "url": "https://openai.com/index/introducing-gpt-5-3-codex",
         "date": "2026-02-05",
         "category": "Product",
         "description": "GPT-5.3-Codex is a Codex-native agent that pairs frontier coding performance with general reasoning to support long-horizon, real-world technical work."
+      },
+      {
+        "source": "openai",
+        "title": "GPT-5.3-Codex System Card",
+        "url": "https://openai.com/index/gpt-5-3-codex-system-card",
+        "date": "2026-02-05",
+        "category": "Publication",
+        "description": "GPT‑5.3-Codex is the most capable agentic coding model to date, combining the frontier coding performance of GPT‑5.2-Codex with the reasoning and professional knowledge capabilities of GPT‑5.2. "
       }
     ],
     "anthropic": [],
