@@ -29,9 +29,9 @@ CATEGORY_TOPIC_TYPE: dict[str, str] = {
 }
 DEFAULT_TOPIC_TYPE = "main"
 
-# Query plan derived from the 8 categories in RESEARCH_AGENT_PROMPT, plus a
-# 9th "official_blogs" source-routing category. {year}/{month}/{month_en}
-# placeholders are filled by _build_query_plan() from publication_date.
+# Query plan derived from the 8 categories in RESEARCH_AGENT_PROMPT, plus 2
+# source-routing categories: "official_blogs" and PyTorch-KR (10 total).
+# {year}/{month}/{month_en} placeholders are filled by _build_query_plan() from publication_date.
 RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "model_releases", "tool": "tavily", "query": "{year}년 {month}월 AI 모델 출시"},
     {"category": "model_releases", "tool": "tavily", "query": "{month_en} {year} new LLM model release"},
