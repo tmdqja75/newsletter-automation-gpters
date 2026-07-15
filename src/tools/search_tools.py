@@ -206,6 +206,8 @@ def _extract_pytorch_kr_post_fields(cooked: str, forum_url: str) -> tuple[str, s
             return "\n\n".join(paragraphs), source_url.strip()
 
     for anchor in soup.find_all("a", href=True):
+        if anchor.find_parent("footer") is not None:
+            continue
         source_url = anchor.get("href")
         if _is_pytorch_kr_primary_source(source_url):
             return "\n\n".join(paragraphs), source_url.strip()

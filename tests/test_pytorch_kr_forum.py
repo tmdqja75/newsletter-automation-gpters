@@ -53,6 +53,7 @@ SAMPLE_INELIGIBLE_LINKS_HTML = """\
 <footer>
   <a href="https://discuss-noti.pytorch.kr/">알림</a>
   <a href="https://www.discourse.org">Powered by Discourse</a>
+  <a href="https://example.com/footer-source">외부 원문처럼 보이는 푸터 링크</a>
 </footer>
 """
 
