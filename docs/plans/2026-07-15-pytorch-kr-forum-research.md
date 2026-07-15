@@ -499,8 +499,8 @@ git commit -m "feat: surface PyTorch-KR primary sources in research"
 Run:
 
 ```bash
-git diff --check origin/dev...HEAD
-git diff --stat origin/dev...HEAD
+git diff --check personal...HEAD
+git diff --stat personal...HEAD
 git status --short
 ```
 
