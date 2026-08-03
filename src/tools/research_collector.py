@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .search_tools import search_ai_news, search_hackernews
+from .search_tools import search_ai_news, search_hackernews, search_pytorch_kr_forum
 from .content_tools import fetch_article_content, fetch_official_blog_posts
 
 
@@ -29,9 +29,9 @@ CATEGORY_TOPIC_TYPE: dict[str, str] = {
 }
 DEFAULT_TOPIC_TYPE = "main"
 
-# Query plan derived from the 8 categories in RESEARCH_AGENT_PROMPT, plus a
-# 9th "official_blogs" source-routing category. {year}/{month}/{month_en}
-# placeholders are filled by _build_query_plan() from publication_date.
+# Query plan derived from the 8 categories in RESEARCH_AGENT_PROMPT, plus 2
+# source-routing categories: "official_blogs" and PyTorch-KR (10 total).
+# {year}/{month}/{month_en} placeholders are filled by _build_query_plan() from publication_date.
 RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "model_releases", "tool": "tavily", "query": "{year}년 {month}월 AI 모델 출시"},
     {"category": "model_releases", "tool": "tavily", "query": "{month_en} {year} new LLM model release"},
@@ -45,6 +45,7 @@ RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "real_world_usecases", "tool": "hn", "query": "Show HN AI agent"},
     {"category": "real_world_usecases", "tool": "tavily", "query": '"AI agent" deployed production results {year}'},
     {"category": "official_blogs", "tool": "blog", "query": None},
+    {"category": "pytorch_kr_community", "tool": "pytorch_kr", "query": None},
 ]
 
 
@@ -103,6 +104,13 @@ def _run_searches(query_plan: list[dict], publication_date: str) -> tuple[list[d
                     for source_posts in blog_result.get("posts", {}).values()
                     for post in source_posts
                 ]
+            elif tool == "pytorch_kr":
+                forum_result = json.loads(search_pytorch_kr_forum(publication_date))
+                for forum_error in forum_result.get("errors", []):
+                    errors.append(f"{category}/{tool}: {forum_error}")
+                forum_posts = forum_result.get("posts", [])
+                if isinstance(forum_posts, list):
+                    items = forum_posts
         except Exception as exc:
             errors.append(f"{category}/{tool}: {exc}")
             items = []
@@ -137,6 +145,8 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
         topic_type = CATEGORY_TOPIC_TYPE.get(category, DEFAULT_TOPIC_TYPE)
 
         for item in result["items"]:
+            original_url = None
+            prefetched_content = None
             if tool == "tavily":
                 url = item.get("url", "")
                 title = item.get("title", "")
@@ -160,6 +170,15 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 score = 0.0
                 summary = item.get("description", "")
                 source = item.get("source") or urlparse(url).netloc
+            elif tool == "pytorch_kr":
+                url = item.get("forum_url", "")
+                title = item.get("title", "")
+                published_at = item.get("published_at")
+                score = 0.0
+                summary = item.get("content", "")
+                source = "discuss.pytorch.kr"
+                original_url = item.get("original_url") or url
+                prefetched_content = summary
             else:
                 continue
 
@@ -171,7 +190,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
             if not published_at:
                 score -= 0.5
 
-            candidates.append({
+            candidate = {
                 "title": title,
                 "url": url,
                 "source": source,
@@ -183,7 +202,11 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 "category": category,
                 "score": round(score, 3),
                 "fetched": False,
-            })
+            }
+            if original_url is not None:
+                candidate["original_url"] = original_url
+                candidate["prefetched_content"] = prefetched_content
+            candidates.append(candidate)
 
     return candidates
 
@@ -268,6 +291,11 @@ def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_pe
     fetched_content: dict[str, str] = {}
 
     for candidate in candidates[:max_fetches]:
+        prefetched_content = candidate.get("prefetched_content")
+        if prefetched_content is not None:
+            fetched_content[candidate["url"]] = prefetched_content[:max_chars_per_source]
+            candidate["fetched"] = True
+            continue
         try:
             result = json.loads(fetch_article_content(candidate["url"]))
         except Exception:

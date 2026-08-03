@@ -73,10 +73,12 @@ RESEARCH_AGENT_PROMPT = """당신은 AI와 LLM 분야의 리서치 전문가입�
 ### 1단계: 압축 리서치 수집 (필수)
 `collect_weekly_research(publication_date=...)`를 호출하여 이번 주 AI/LLM 뉴스 후보 목록을 가져오세요.
 이 도구는 모델 발표, AI 에이전트/자동화, 연구 논문, 도구/인프라, 산업 동향, 정책/사회, 학습 자료,
-그리고 실제 AI 활용 사례(Show HN 검색 포함)와 공식 블로그(OpenAI/Anthropic/DeepMind)를
-검색하고, 중복 제거·날짜 필터링·요약을 거친 압축된 후보(candidates) 목록을 반환합니다.
+실제 AI 활용 사례(Show HN 검색 포함), 공식 블로그(OpenAI/Anthropic/DeepMind), 그리고
+PyTorch-KR 포럼의 읽을거리·정보공유 게시글을 검색하고, 중복 제거·날짜 필터링·요약을 거친
+압축된 후보(candidates) 목록을 반환합니다.
 각 후보는 title, url, source, published_at, summary, key_facts, why_it_matters,
-topic_type, category 필드를 포함합니다.
+topic_type, category 필드를 포함합니다. PyTorch-KR 후보에는 선택적으로 original_url도 있으며,
+url은 한국 커뮤니티 맥락을 보존하는 포럼 출처 URL이고 original_url은 사실 검증에 사용할 원문/주요 출처입니다.
 
 ### 2단계: 선택적 원문 확인
 중요도가 높은 후보 중 `fetched`가 false이거나 summary가 빈약한 후보에 대해서는
@@ -89,11 +91,13 @@ candidates 목록을 바탕으로 아래 형식의 번호가 매겨진 보고서
 각 토픽에 대해 다음 정보를 제공하세요:
 1. 제목
 2. 요약 (2-3문장) — candidates의 summary, key_facts, why_it_matters를 활용하세요
-3. 출처 URL
+3. 출처 URL — PyTorch-KR 후보는 포럼 출처 URL: <url>로 표시하세요
+   - 원문/주요 출처 URL: <original_url> — PyTorch-KR 후보에서 original_url이 포럼 URL과 다를 때만 표시하고,
+     기사 작성 시 사실 검증은 이 URL을 우선 사용하세요
 4. 발표/게시 날짜 (published_at)
 5. 중요도 (높음/중간/낮음) — category가 real_world_usecases(실제 AI 활용 사례)이거나
    why_it_matters가 강한 후보는 높음으로 표시하세요
-6. 카테고리 (모델발표/에이전트/연구/도구/산업동향/정책/학습자료)
+6. 카테고리 (모델발표/에이전트/연구/도구/산업동향/정책/학습자료/커뮤니티)
 
 ## 우선순위
 실제 AI 활용 사례(개인·기업이 AI 에이전트/LLM으로 구체적 문제를 해결한 사례)는

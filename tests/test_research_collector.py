@@ -28,6 +28,7 @@ EXPECTED_CATEGORIES = {
     "study_resources",
     "real_world_usecases",
     "official_blogs",
+    "pytorch_kr_community",
 }
 
 
@@ -90,9 +91,13 @@ def test_run_searches_collects_items_and_tags_category(monkeypatch):
             "total_count": 1,
         })
 
+    def fake_search_pytorch_kr_forum(publication_date):
+        return json.dumps({"publication_date": publication_date, "posts": []})
+
     monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", fake_search_hackernews)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
+    monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", fake_search_pytorch_kr_forum)
 
     plan = _build_query_plan("2026-06-17")
     raw_results, errors = _run_searches(plan, "2026-06-17")
@@ -114,6 +119,7 @@ def test_run_searches_captures_errors_without_raising(monkeypatch):
     monkeypatch.setattr("src.tools.research_collector.search_ai_news", boom)
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", boom)
 
     plan = _build_query_plan("2026-06-17")
     raw_results, errors = _run_searches(plan, "2026-06-17")
@@ -397,6 +403,9 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
             "total_count": 0,
         })
 
+    def fake_search_pytorch_kr_forum(publication_date):
+        return json.dumps({"publication_date": publication_date, "posts": []})
+
     def fake_fetch_article_content(url):
         return json.dumps({"url": url, "domain": "example.com", "title": "AI News",
                             "description": "", "content": "full content " * 50})
@@ -411,6 +420,7 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
     monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", fake_search_hackernews)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
+    monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", fake_search_pytorch_kr_forum)
     monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
 
     result = _collect_weekly_research_core("2026-06-17", summarizer=fake_summarizer)
@@ -434,6 +444,7 @@ def test_collect_weekly_research_wrapper_returns_valid_json_on_search_failure(mo
     monkeypatch.setattr("src.tools.research_collector.search_ai_news", boom)
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", boom)
 
     output = collect_weekly_research("2026-06-17")
     parsed = json.loads(output)
