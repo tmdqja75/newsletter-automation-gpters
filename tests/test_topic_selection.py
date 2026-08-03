@@ -103,3 +103,70 @@ def test_run_weekly_research_reports_error_count(tmp_path, monkeypatch):
 
     assert "후보 0개" in receipt
     assert "오류 1건" in receipt
+
+
+from src.tools import interrupt_tools
+
+
+def test_request_topic_selection_resolves_numbers_in_python(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_cache("2026-08-05", [_candidate(i) for i in range(1, 6)])
+    monkeypatch.setattr(interrupt_tools, "interrupt", lambda payload: "2,4")
+
+    picked = json.loads(interrupt_tools.request_topic_selection("2026-08-05", 2, []))
+
+    assert [c["url"] for c in picked] == ["https://example.com/2", "https://example.com/4"]
+
+
+def test_request_topic_selection_payload_comes_from_disk(tmp_path, monkeypatch):
+    """The list the user sees is rendered from the cache, not from a model argument."""
+    monkeypatch.chdir(tmp_path)
+    _write_cache("2026-08-05", [_candidate(1), _candidate(2)])
+    seen = {}
+
+    def capture(payload):
+        seen.update(payload)
+        return "1"
+
+    monkeypatch.setattr(interrupt_tools, "interrupt", capture)
+    interrupt_tools.request_topic_selection("2026-08-05", 1, ["확정 토픽"])
+
+    assert seen["type"] == "topic_selection"
+    assert "토픽 1" in seen["topics"]
+    assert seen["confirmed"] == ["확정 토픽"]
+    assert seen["open_slots"] == 1
+    assert seen["total"] == 2
+
+
+def test_request_topic_selection_guards_empty_candidates(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    def explode(payload):
+        raise AssertionError("must not interrupt against an empty list")
+
+    monkeypatch.setattr(interrupt_tools, "interrupt", explode)
+
+    assert interrupt_tools.request_topic_selection("2026-08-05", 2, []).startswith("오류:")
+
+
+def test_request_topic_selection_returns_error_on_bad_input(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_cache("2026-08-05", [_candidate(1), _candidate(2)])
+    monkeypatch.setattr(interrupt_tools, "interrupt", lambda payload: "99")
+
+    assert interrupt_tools.request_topic_selection("2026-08-05", 1, "").startswith("오류:")
+
+
+def test_auto_select_topics_matches_hitl_shape(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_cache("2026-08-05", [_candidate(i) for i in range(1, 6)])
+
+    picked = json.loads(interrupt_tools.auto_select_topics("2026-08-05", 2))
+
+    assert len(picked) == 2
+    assert picked[0]["url"] == "https://example.com/1"
+
+
+def test_auto_select_topics_guards_empty_candidates(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert interrupt_tools.auto_select_topics("2026-08-05", 2).startswith("오류:")
