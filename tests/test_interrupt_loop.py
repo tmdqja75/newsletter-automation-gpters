@@ -109,3 +109,35 @@ def test_create_agent_omits_research_tools_when_no_open_slots(monkeypatch):
     assert "run_weekly_research" not in names
     assert "request_topic_selection" not in names
     assert "save_article" in names
+
+
+import pytest
+
+import run as cli
+
+
+def test_validate_topic_count_returns_open_slots():
+    assert cli.validate_topic_count(4, "X, Y") == 2
+    assert cli.validate_topic_count(4, None) == 4
+    assert cli.validate_topic_count(2, "X, Y") == 0
+
+
+def test_validate_topic_count_rejects_too_many_topics():
+    with pytest.raises(ValueError, match="--count"):
+        cli.validate_topic_count(2, "X, Y, Z")
+
+
+def test_count_articles_ignores_generated_files(tmp_path, monkeypatch):
+    """The success backstop must not count the newsletter or the research dump."""
+    monkeypatch.chdir(tmp_path)
+    d = tmp_path / "articles" / "2026-08-05"
+    d.mkdir(parents=True)
+    for name in ("01_a.md", "02_b.md", "newsletter.md", "research_results.md"):
+        (d / name).write_text("x", encoding="utf-8")
+
+    assert cli.count_articles("2026-08-05") == 2
+
+
+def test_count_articles_returns_zero_when_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert cli.count_articles("2026-08-05") == 0
