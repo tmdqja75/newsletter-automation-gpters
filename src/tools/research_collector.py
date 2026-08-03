@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 
 from .search_tools import search_ai_news, search_hackernews, search_pytorch_kr_forum
 from .content_tools import fetch_article_content, fetch_official_blog_posts
+from ..config import ARTICLES_DIR
+from .research_report import render_research_results
 
 
 _MONTH_NAMES_EN = [
@@ -461,6 +463,11 @@ def _collect_weekly_research_core(
     fetched_content = _fetch_top_candidates(candidates, max_fetches, max_chars_per_source)
     total_fetched = len(fetched_content)
 
+    # prefetched_content duplicates summary for PyTorch-KR candidates; drop it
+    # before persisting so the forum text does not ship twice.
+    for candidate in candidates:
+        candidate.pop("prefetched_content", None)
+
     errors.extend(_summarize_candidates(candidates, fetched_content, summarizer))
     errors.extend(_persist_artifacts(publication_date, raw_results, candidates))
 
@@ -521,3 +528,39 @@ def collect_weekly_research(
         result.pop("errors", None)
 
     return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+def load_candidates(publication_date: str) -> list[dict]:
+    """Read cached candidates for a date. Returns [] if absent or unreadable."""
+    path = Path("artifacts") / "research" / publication_date / "candidates.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def run_weekly_research(publication_date: str) -> str:
+    """이번 주 AI/LLM 뉴스 후보를 수집해 research_results.md 파일로 저장합니다.
+
+    후보 목록 자체는 반환하지 않습니다. 사용자가 파일과 토픽 선택 화면에서 직접 확인합니다.
+    이전에 같은 날짜로 수집한 결과가 있으면 재사용합니다.
+
+    Args:
+        publication_date: 뉴스레터 발행일 (YYYY-MM-DD 형식)
+
+    Returns:
+        수집 결과 한 줄 요약 (후보 개수와 저장 경로)
+    """
+    cached = load_candidates(publication_date)
+    if cached:
+        result = {"publication_date": publication_date, "candidates": cached}
+    else:
+        result = json.loads(collect_weekly_research(publication_date))
+
+    path = Path(ARTICLES_DIR) / publication_date / "research_results.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_research_results(result), encoding="utf-8")
+
+    errors = result.get("errors") or []
+    note = f" (오류 {len(errors)}건)" if errors else ""
+    return f"후보 {len(result.get('candidates', []))}개 수집 완료{note}. {path}"

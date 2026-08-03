@@ -474,3 +474,31 @@ def test_research_subagent_tools_wiring():
     from src.tools.content_tools import fetch_article_content
 
     assert research_subagent["tools"] == [collect_weekly_research, fetch_article_content]
+
+
+def test_core_strips_prefetched_content(monkeypatch, tmp_path):
+    """prefetched_content duplicates summary and must not reach the model or disk."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "src.tools.research_collector._run_searches",
+        lambda plan, date: (
+            [{
+                "category": "pytorch_kr_community",
+                "tool": "pytorch_kr",
+                "query": None,
+                "items": [{
+                    "forum_url": "https://discuss.pytorch.kr/t/1",
+                    "title": "포럼 글",
+                    "published_at": "2026-08-01",
+                    "content": "본문" * 100,
+                    "original_url": "https://origin.example.com/1",
+                }],
+            }],
+            [],
+        ),
+    )
+    monkeypatch.setattr("src.tools.research_collector._summarize_candidates", lambda *a, **k: [])
+
+    result = _collect_weekly_research_core("2026-08-05")
+
+    assert all("prefetched_content" not in c for c in result["candidates"])
