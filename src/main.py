@@ -20,7 +20,7 @@ from .config import (
     MODEL_NAME,
     to_model_spec,
 )
-from .agents import research_subagent, topic_selection_agent, article_writer_agent
+from .agents import topic_researcher_agent, article_writer_agent
 from .tools.interrupt_tools import request_topic_selection
 from .utils.merge_articles import merge_newsletter
 
@@ -217,7 +217,7 @@ def create_newsletter_agent(target_date: str, articles_root: str = None, use_hit
         "model": model_spec,
         "system_prompt": system_prompt,
         "tools": tools,
-        "subagents": [research_subagent, article_writer_agent],
+        "subagents": [topic_researcher_agent, article_writer_agent],
         "backend": FilesystemBackend(root_dir=".", virtual_mode=True),
     }
 
