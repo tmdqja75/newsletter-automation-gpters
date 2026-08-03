@@ -26,7 +26,7 @@ def test_create_newsletter_agent_uses_article_writer(monkeypatch):
     create_newsletter_agent("2026-06-17")
 
     subagent_names = {sa["name"] for sa in captured["subagents"]}
-    assert subagent_names == {"research-agent", "article-writer"}
+    assert subagent_names == {"topic-researcher", "article-writer"}
 
 
 from src.agents import topic_researcher_agent
