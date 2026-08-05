@@ -74,7 +74,7 @@ Built with `deepagents` (LangGraph wrapper), consisting of:
    - Tools: `search_ai_news`, `fetch_article_content`
 
 3. **Weekly Research** (`src/tools/research_collector.py`) — not an agent
-   - `run_weekly_research(date)` searches 10 categories, dedupes, date-filters,
+   - `run_weekly_research(date)` searches 7 categories, dedupes, date-filters,
      ranks, fetches, and batch-summarizes with a cheap model
    - Writes `articles/{date}/research_results.md` and caches candidates to
      `artifacts/research/{date}/candidates.json`
@@ -108,8 +108,8 @@ src/
 │   ├── article_writer.py     # Research + draft + tone in one pass
 │   └── tone_editor.py        # Style editing subagent
 ├── tools/
-│   ├── search_tools.py       # Tavily, HackerNews, PyTorch-KR forum
-│   ├── content_tools.py      # Article fetching, official blog RSS
+│   ├── search_tools.py       # Tavily, HackerNews, PyTorch-KR forum, GitHub search
+│   ├── content_tools.py      # Article fetching, official blog RSS, GitHub trending
 │   ├── research_collector.py # Weekly pipeline + run_weekly_research
 │   ├── research_report.py    # Pure render/parse (stdlib only)
 │   └── interrupt_tools.py    # request_topic_selection, auto_select_topics
@@ -199,12 +199,22 @@ Whitelisted domains:
 - Tech platforms: huggingface.co, arxiv.org
 - News outlets: techcrunch.com, theverge.com, venturebeat.com, wired.com, arstechnica.com
 
-Uses `search_depth="advanced"` for comprehensive results.
+Uses `search_depth="advanced"` and `topic="news"` (required for Tavily to
+populate `published_date` — the default topic never returns it) for
+recent, dated results.
 
 ### HackerNews Search (`search_hackernews`)
 
 Uses Algolia HN API with `tags=story` filter.
 Returns: title, URL, HN discussion URL, points, comment count, author, timestamp.
+
+### GitHub (`search_github_repos`, `fetch_github_trending`)
+
+Two signals under the `github_trending` category:
+- `search_github_repos`: GitHub Search API, repos created in the last 14 days, sorted by stars — "just launched."
+- `fetch_github_trending`: scrapes `github.com/trending?since=weekly`, keyword-filtered to AI/agent-related repos — "viral this week" (stars gained, not total; the Search API can't expose this).
+
+No `GITHUB_TOKEN` required — unauthenticated rate limit (10 req/min) comfortably covers this project's usage.
 
 ## Package Manager: uv
 
