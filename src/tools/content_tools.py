@@ -305,3 +305,67 @@ def fetch_official_blog_posts(publication_date: str) -> str:
 
     return json.dumps(result, ensure_ascii=False, indent=2)
 
+
+GITHUB_TRENDING_URL = "https://github.com/trending"
+_GITHUB_TRENDING_KEYWORDS = ("agent", "ai", "llm", "gpt", "claude", "gemini")  # ponytail: keyword allowlist, misses on-topic repos with none of these words — add NLP classification only if this proves too lossy in practice
+
+
+def _matches_ai_keywords(text: str) -> bool:
+    lowered = text.lower()
+    return any(keyword in lowered for keyword in _GITHUB_TRENDING_KEYWORDS)
+
+
+def _fetch_github_trending_posts(client: httpx.Client) -> list[dict]:
+    """Fetch github.com/trending (weekly) and keyword-filter to AI/agent repos."""
+    response = client.get(GITHUB_TRENDING_URL, params={"since": "weekly"}, headers=_HEADERS)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    posts = []
+    for article in soup.select("article.Box-row"):
+        link = article.select_one("h2 a")
+        if not link or not link.get("href"):
+            continue
+        full_name = link["href"].strip("/")
+
+        desc_el = article.select_one("p")
+        description = desc_el.get_text(strip=True) if desc_el else ""
+
+        if not _matches_ai_keywords(f"{full_name} {description}"):
+            continue
+
+        stars_el = article.select_one("span.d-inline-block.float-sm-right")
+        stars_this_week = stars_el.get_text(strip=True) if stars_el else ""
+
+        posts.append({
+            "full_name": full_name,
+            "url": f"https://github.com/{full_name}",
+            "description": description,
+            "stars_this_week": stars_this_week,
+        })
+    return posts
+
+
+def fetch_github_trending(publication_date: str) -> str:
+    """Scrape github.com/trending (weekly window) for AI/agent-related repos
+    gaining stars fast — a "viral this week" signal the Search API can't
+    provide (it only exposes total stars, not stars gained).
+
+    Args:
+        publication_date: Newsletter publication date in YYYY-MM-DD format.
+            Context only — the trending page reflects the current week at
+            fetch time, not a lookup for that specific date.
+
+    Returns:
+        JSON string with publication_date and a list of
+        {full_name, url, description, stars_this_week}, filtered to repos
+        whose name or description mentions an AI/agent-related keyword.
+    """
+    result = {"publication_date": publication_date, "posts": []}
+    try:
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            result["posts"] = _fetch_github_trending_posts(client)
+    except Exception as e:
+        result["errors"] = [str(e)]
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
