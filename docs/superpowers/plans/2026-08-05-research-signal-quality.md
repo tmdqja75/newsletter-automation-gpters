@@ -1,6 +1,6 @@
 # Research Signal Quality Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix the newsletter research pipeline so it surfaces novel AI tool/model launches and viral demos instead of SEO listicles, per `docs/superpowers/specs/2026-08-05-research-signal-quality-design.md`.
 
