@@ -91,7 +91,15 @@ A title matching any pattern is dropped outright (not score-penalized) — struc
 
 ### Published-date capture for Tavily
 
-`_normalize_candidates`'s `"tavily"` branch currently discards Tavily's `published_date` field. Wire it through and parse to `YYYY-MM-DD`, falling back to `None` on parse failure (existing `-0.5` penalty path unchanged for genuinely undated results). **Implementation must verify the actual field name/format against a live Tavily response** — this design assumes `published_date` per Tavily's documented advanced-search schema, but field names have drifted before and no live key was available while writing this spec.
+Live-verified against the real API (`.env` has a working `TAVILY_API_KEY`) before writing this section — the original assumption was wrong. `search_ai_news`'s default call (`search_depth="advanced"`, no `topic` param, i.e. `topic="general"`) never returns a `published_date` at all: every result dict has exactly the keys `url, title, content, score, raw_content, id`. `_normalize_candidates` hardcoding `published_at = None` (`:155`) wasn't discarding a field — there was nothing to discard.
+
+Passing `topic="news"` to `client.search()` changes this: every result gains a `published_date` key in RFC 2822 format (`"Tue, 28 Apr 2026 17:00:03 GMT"`) — the exact format `email.utils.parsedate_to_datetime` already parses elsewhere in this codebase (`content_tools.py:106-111`, `_parse_rss_date`). Verified live for both the English arXiv-style query and a Korean date-based query — dates populated consistently for both.
+
+Fix, two parts:
+1. `search_ai_news` (`search_tools.py`) adds `topic="news"` to the `client.search()` call.
+2. `_normalize_candidates`'s `"tavily"` branch reads `item.get("published_date")` and parses it with the same `parsedate_to_datetime` approach as the RSS parser, falling back to `None` on parse failure (existing `-0.5` penalty path unchanged for genuinely undated results).
+
+`topic="news"` is also a second, independent improvement against listicle content — news-topic search is inherently event-oriented rather than evergreen-page-oriented. It isn't a complete fix on its own though: a live query during verification still surfaced "2026년 가이드" ("2026 guide") in results even under `topic="news"` — the listicle title filter (above) stays necessary as a backstop regardless.
 
 This has a real second-order effect: once dates are populated, `_date_filter`'s 14-day window actually applies to Tavily results for the first time. Expect the two remaining Tavily categories (`model_releases`, `research_papers`) to return fewer, more genuinely-recent candidates — this is the intended fix, not a regression.
 
@@ -136,7 +144,7 @@ if category in _NOVELTY_BOOST_CATEGORIES:
 
 | Module | Change |
 |---|---|
-| `src/tools/search_tools.py` | Re-enable `include_domains` in `search_ai_news`; add `search_github_repos(query, publication_date, max_results=6)` — GitHub Search API, `created:>` window, sort by stars |
+| `src/tools/search_tools.py` | Re-enable `include_domains` in `search_ai_news`; add `topic="news"` so Tavily populates `published_date`; add `search_github_repos(query, publication_date, max_results=6)` — GitHub Search API, `created:>` window, sort by stars |
 | `src/tools/content_tools.py` | Add `fetch_github_trending(publication_date)` — scrape `github.com/trending?since=weekly`, keyword-filter, return `{full_name, url, description, stars_this_week}` list |
 | `src/tools/research_collector.py` | `RESEARCH_QUERY_PLAN`: drop 4 categories' entries, drop 2 Tavily legs, add 3 `github_trending` entries. `_run_searches`: dispatch `github_search`/`github_trending_scrape` tool types. `_normalize_candidates`: capture Tavily `published_date`; add listicle title filter; add blog category→`real_world_usecases` routing; add github normalize branches; extend score-boost set; missing-date penalty `-0.5` → `-0.2`. `max_search_results` default `20` → `30` |
 | `src/tools/research_report.py` | `CATEGORY_LABELS_KO`: drop 4 entries, add `github_trending`; `_importance()`: extend "always 높음" set |
@@ -191,7 +199,7 @@ No new tests hit live APIs — the existing `integration` marker convention hold
 - **`study_resources` category is dropped.** It fed the newsletter's dedicated `study_cafe` article slot (`config.py:48`, `study_cafe.md`). The batch summarizer can still opportunistically tag any fetched candidate as `study_cafe` based on content (`config.py:70`), but there's no longer a dedicated query hunting for tutorials — some weeks the slot may go unfilled. Explicitly chosen: tutorials are out of scope for "eye-opening/novel" content, and a dedicated-but-listicle-prone query isn't worth keeping just to guarantee slot coverage.
 - **Trending-page keyword filter has false negatives.** An on-topic repo whose name/description uses none of `agent/ai/llm/gpt/claude/gemini` (e.g., a paper-implementation repo just called "reverse-skill") is silently dropped from the trending leg. Accepted for simplicity; the Search API leg's `topic:`/keyword-scoped queries don't have this gap.
 - **GitHub trending "published_at" is an approximation.** The weekly trending page shows momentum, not a creation or event date; items get `publication_date` (today) rather than a real date. This is consistent with how the category is used (rank by novelty/score, not by chronological placement) but means `_date_filter`'s window check is a no-op for this leg specifically.
-- **Tavily field-name assumption is unverified.** `published_date` capture is designed against Tavily's documented schema but not confirmed against a live call (no API key available while writing this spec). First implementation step should be a live sanity check before wiring the parse logic in.
+- **`topic="news"` scopes every Tavily query to news-oriented results, not just the ones that need dates.** `search_ai_news` is shared by `model_releases` and `research_papers`; both switch to `topic="news"` together since the function has one call site. Verified live this doesn't break the arXiv-style research_papers query (still returned relevant results), but it's a behavior change applied uniformly, not per-category.
 
 ## Net effect
 
