@@ -109,6 +109,16 @@ include_domains=[
 
 `exclude_domains` (currently `openai.com`, `anthropic.com`, `deepmind.google` — deduped against `official_blogs`) stays as-is; a URL blocked by both lists is still blocked, and `_dedupe_candidates` handles any residual overlap by canonical URL regardless.
 
+### Missing-date penalty reduced: -0.5 → -0.2
+
+The current `-0.5` penalty for missing/unparseable `published_at` (`research_collector.py:192-193`) is larger than any single novelty boost (`+0.3`), so one undated item can flip a `real_world_usecases`/`github_trending` candidate negative even when it's otherwise exactly the kind of content this design is trying to surface. Reduced to `-0.2` — still a real penalty (dated items rank ahead of undated ones, all else equal), but no longer able to override the novelty boost on its own.
+
+This interacts with the Tavily date-capture fix above: once Tavily results carry real dates, the penalty applies almost exclusively to `github_trending`'s weekly-trending leg (which has no per-repo date, only a fetch-time approximation — see Accepted tradeoffs) and any source where date parsing genuinely fails. It stops being the blanket penalty it effectively was before.
+
+### Candidate cutoff raised: top 20 → top 30
+
+`max_search_results` (`collect_weekly_research`/`_collect_weekly_research_core` default, `research_collector.py:437,485`) goes from 20 to 30. With four categories now producing flat, closely-clustered scores (`0`, `0.3`, `0.2`, `0.5` combinations from the boost/penalty system above) instead of Tavily's more spread-out relevance floats, more candidates tie or cluster near the truncation boundary — raising the cutoff reduces the chance a legitimate novel item gets silently dropped at exactly the point this design is trying to surface more of them. `max_fetches` (full-content fetch + summarization budget, still 8 by default) is unchanged — this only widens what survives into `candidates.json` for the user to see and pick from, not what gets the expensive fetch/summarize treatment.
+
 ### Score boost extended to `github_trending`
 
 The existing `if category == "real_world_usecases": score += 0.3` becomes a set membership check:
@@ -128,7 +138,7 @@ if category in _NOVELTY_BOOST_CATEGORIES:
 |---|---|
 | `src/tools/search_tools.py` | Re-enable `include_domains` in `search_ai_news`; add `search_github_repos(query, publication_date, max_results=6)` — GitHub Search API, `created:>` window, sort by stars |
 | `src/tools/content_tools.py` | Add `fetch_github_trending(publication_date)` — scrape `github.com/trending?since=weekly`, keyword-filter, return `{full_name, url, description, stars_this_week}` list |
-| `src/tools/research_collector.py` | `RESEARCH_QUERY_PLAN`: drop 4 categories' entries, drop 2 Tavily legs, add 3 `github_trending` entries. `_run_searches`: dispatch `github_search`/`github_trending_scrape` tool types. `_normalize_candidates`: capture Tavily `published_date`; add listicle title filter; add blog category→`real_world_usecases` routing; add github normalize branches; extend score-boost set |
+| `src/tools/research_collector.py` | `RESEARCH_QUERY_PLAN`: drop 4 categories' entries, drop 2 Tavily legs, add 3 `github_trending` entries. `_run_searches`: dispatch `github_search`/`github_trending_scrape` tool types. `_normalize_candidates`: capture Tavily `published_date`; add listicle title filter; add blog category→`real_world_usecases` routing; add github normalize branches; extend score-boost set; missing-date penalty `-0.5` → `-0.2`. `max_search_results` default `20` → `30` |
 | `src/tools/research_report.py` | `CATEGORY_LABELS_KO`: drop 4 entries, add `github_trending`; `_importance()`: extend "always 높음" set |
 
 No new files, no new dependencies (`httpx`, `bs4` already used for the existing PyTorch-KR/Anthropic scrapers).
@@ -185,4 +195,4 @@ No new tests hit live APIs — the existing `integration` marker convention hold
 
 ## Net effect
 
-13 search-plan entries → 8, 4 SEO-listicle-prone categories removed outright, a structural listicle-title filter added as a backstop, Tavily's date blindness fixed (both fixing false "날짜 미상" spam and enabling real staleness filtering), and two new bottom-up signals added (GitHub Search API for brand-new projects, GitHub trending scrape for real viral momentum) — both verified against live data during design rather than assumed to work.
+13 search-plan entries → 8, 4 SEO-listicle-prone categories removed outright, a structural listicle-title filter added as a backstop, Tavily's date blindness fixed (both fixing false "날짜 미상" spam and enabling real staleness filtering), and two new bottom-up signals added (GitHub Search API for brand-new projects, GitHub trending scrape for real viral momentum) — both verified against live data during design rather than assumed to work. Scoring rebalanced (missing-date penalty `-0.5` → `-0.2`, so it can no longer override a novelty boost on its own) and the candidate pool widened (top 20 → top 30) to match the new boost/penalty system's flatter score distribution.
