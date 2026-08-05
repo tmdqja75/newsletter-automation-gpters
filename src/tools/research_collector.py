@@ -157,6 +157,14 @@ def _is_listicle_title(title: str) -> bool:
     return any(pattern.search(title) for pattern in _LISTICLE_TITLE_PATTERNS)
 
 
+_CASE_STUDY_KEYWORDS = ("customer", "story", "case stud")
+
+
+def _is_case_study_tag(tag: str) -> bool:
+    lowered = tag.lower()
+    return any(keyword in lowered for keyword in _CASE_STUDY_KEYWORDS)
+
+
 def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     """Convert raw search results into preliminary ResearchCandidate dicts.
 
@@ -176,6 +184,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
         for item in result["items"]:
             original_url = None
             prefetched_content = None
+            item_category = category
             if tool == "tavily":
                 url = item.get("url", "")
                 title = item.get("title", "")
@@ -199,6 +208,8 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 score = 0.0
                 summary = item.get("description", "")
                 source = item.get("source") or urlparse(url).netloc
+                if _is_case_study_tag(item.get("category", "")):
+                    item_category = "real_world_usecases"
             elif tool == "pytorch_kr":
                 url = item.get("forum_url", "")
                 title = item.get("title", "")
@@ -216,7 +227,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
             if _is_listicle_title(title):
                 continue
 
-            if category == "real_world_usecases":
+            if item_category == "real_world_usecases":
                 score += 0.3
             if not published_at:
                 score -= 0.2
@@ -230,7 +241,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 "key_facts": [],
                 "why_it_matters": "",
                 "topic_type": topic_type,
-                "category": category,
+                "category": item_category,
                 "score": round(score, 3),
                 "fetched": False,
             }

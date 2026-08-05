@@ -273,6 +273,32 @@ def test_normalize_candidates_skips_missing_url_or_title():
     assert candidates == []
 
 
+def test_normalize_candidates_routes_blog_case_studies_to_real_world_usecases():
+    raw_results = [
+        {
+            "category": "official_blogs", "tool": "blog", "query": None,
+            "items": [
+                {"source": "anthropic", "title": "Customer story: Acme ships agents",
+                 "url": "https://anthropic.com/news/acme", "date": "2026-08-01",
+                 "category": "Customer story", "description": "desc"},
+                {"source": "openai", "title": "Introducing GPT-5.7",
+                 "url": "https://openai.com/news/gpt57", "date": "2026-08-01",
+                 "category": "Announcements", "description": "desc"},
+            ],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    case_study = next(c for c in candidates if "Acme" in c["title"])
+    assert case_study["category"] == "real_world_usecases"
+    assert case_study["score"] == 0.3  # 0.0 base + 0.3 boost
+
+    announcement = next(c for c in candidates if "GPT-5.7" in c["title"])
+    assert announcement["category"] == "official_blogs"
+    assert announcement["score"] == 0.0
+
+
 def test_dedupe_candidates_by_url_and_title():
     candidates = [
         {"title": "Same Title", "url": "https://example.com/page?utm_source=x", "score": 0.5},
