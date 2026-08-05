@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from src.tools.research_collector import (
     RESEARCH_QUERY_PLAN,
     _build_query_plan,
@@ -206,6 +208,49 @@ def test_normalize_candidates_tavily_bad_date_falls_back_to_none():
     assert candidates[0]["published_at"] is None
     # 0.5 - 0.2 (missing/unparseable date penalty)
     assert candidates[0]["score"] == 0.3
+
+
+@pytest.mark.parametrize("title", [
+    "10 Best AI Developer Tools in 2026 | Scalable Path",
+    "Best AI Developer Tools for 2026 | AI Software Development Tools",
+    "I tried 70+ best AI tools in 2026",
+    "Top 10 AI Tools Every Developer Must Know in 2026",
+    "Top 10 Best AI Tools for 2026 (Q3 Update)",
+    "The Definitive Guide to AI Agent Deployment for Small Business in 2026",
+    "AI 에이전트 구축: 2026년 지능형 자동화 생성을 위한 완벽 가이드",
+])
+def test_is_listicle_title_rejects_known_seo_patterns(title):
+    from src.tools.research_collector import _is_listicle_title
+    assert _is_listicle_title(title) is True
+
+
+@pytest.mark.parametrize("title", [
+    "Anthropic ships Claude Code skill for X",
+    "OpenAI announces GPT-5.6",
+    "microsoft/skill-recorder",
+    "State of AI Agent Security Report 2026",
+])
+def test_is_listicle_title_keeps_legitimate_titles(title):
+    from src.tools.research_collector import _is_listicle_title
+    assert _is_listicle_title(title) is False
+
+
+def test_normalize_candidates_drops_listicle_titles():
+    raw_results = [
+        {
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [
+                {"title": "Top 10 AI Tools Every Developer Must Know", "url": "https://example.com/a",
+                 "content": "x", "score": 0.9},
+                {"title": "Anthropic ships new agent skill", "url": "https://example.com/b",
+                 "content": "x", "score": 0.5},
+            ],
+        },
+    ]
+    candidates = _normalize_candidates(raw_results)
+    titles = [c["title"] for c in candidates]
+    assert "Anthropic ships new agent skill" in titles
+    assert "Top 10 AI Tools Every Developer Must Know" not in titles
 
 
 def test_max_search_results_default_is_30():

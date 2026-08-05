@@ -141,6 +141,22 @@ def _parse_tavily_date(raw: str | None) -> str | None:
         return None
 
 
+_LISTICLE_TITLE_PATTERNS = [
+    re.compile(r"\btop\s*\d+\b", re.IGNORECASE),
+    re.compile(r"\bbest\b.*\b(tools?|ai)\b", re.IGNORECASE),
+    re.compile(r"\d+\+?\s*(best|top)\b", re.IGNORECASE),
+    re.compile(r"\bguide to\b", re.IGNORECASE),
+    re.compile(r"\b(definitive|ultimate) guide\b", re.IGNORECASE),
+    re.compile(r"완벽\s*가이드"),
+    re.compile(r"가이드$"),
+]
+
+
+def _is_listicle_title(title: str) -> bool:
+    """Reject SEO roundup titles ("Top 10...", "Best AI Tools...", "...완벽 가이드")."""
+    return any(pattern.search(title) for pattern in _LISTICLE_TITLE_PATTERNS)
+
+
 def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     """Convert raw search results into preliminary ResearchCandidate dicts.
 
@@ -196,6 +212,8 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 continue
 
             if not url or not title:
+                continue
+            if _is_listicle_title(title):
                 continue
 
             if category == "real_world_usecases":
