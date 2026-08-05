@@ -437,6 +437,36 @@ def test_rank_and_truncate_sorts_by_score_and_limits():
     assert [c["title"] for c in result] == ["High", "Mid"]
 
 
+def test_rank_and_truncate_interleaves_categories_so_none_dominates():
+    """One boosted category with many candidates must not crowd out a
+    flat-scored category with none — regression for the real-run bug where
+    github_trending (flat 0.3 boost) filled 21/30 slots while
+    pytorch_kr_community/official_blogs (flat 0.0, no boost) got zero."""
+    candidates = (
+        [{"title": f"gh{i}", "category": "github_trending", "score": 0.3} for i in range(20)]
+        + [{"title": f"pt{i}", "category": "pytorch_kr_community", "score": 0.0} for i in range(20)]
+        + [{"title": "top", "category": "model_releases", "score": 0.9}]
+    )
+
+    result = _rank_and_truncate(candidates, max_search_results=9)
+    categories = [c["category"] for c in result]
+
+    assert categories.count("github_trending") <= 4
+    assert categories.count("pytorch_kr_community") >= 3
+    assert "model_releases" in categories
+
+
+def test_rank_and_truncate_preserves_score_order_within_category():
+    candidates = [
+        {"title": "gh-low", "category": "github_trending", "score": 0.1},
+        {"title": "gh-high", "category": "github_trending", "score": 0.9},
+    ]
+
+    result = _rank_and_truncate(candidates, max_search_results=2)
+
+    assert [c["title"] for c in result] == ["gh-high", "gh-low"]
+
+
 def test_fetch_top_candidates_limits_and_truncates(monkeypatch):
     candidates = [
         {"title": f"T{i}", "url": f"https://example.com/{i}", "source": "example.com",

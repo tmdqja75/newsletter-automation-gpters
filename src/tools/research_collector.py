@@ -344,9 +344,36 @@ def _date_filter(candidates: list[dict], publication_date: str) -> list[dict]:
 
 
 def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[dict]:
-    """Sort candidates by score (descending) and truncate to max_search_results."""
-    ranked = sorted(candidates, key=lambda c: c["score"], reverse=True)
-    return ranked[:max_search_results]
+    """Interleave candidates across categories (best score first within each
+    category) round-robin, so one heavily-boosted or high-volume category
+    (e.g. github_trending's flat +0.3) can't crowd out categories with no
+    boost mechanism at all (official_blogs, pytorch_kr_community sit at flat
+    0.0). Reduces to a plain score sort when every candidate shares one
+    category (or has none).
+    """
+    by_category: dict[object, list[dict]] = {}
+    order: list[object] = []
+    for c in candidates:
+        cat = c.get("category")
+        if cat not in by_category:
+            by_category[cat] = []
+            order.append(cat)
+        by_category[cat].append(c)
+
+    for group in by_category.values():
+        group.sort(key=lambda c: c["score"], reverse=True)
+
+    result: list[dict] = []
+    depth = 0
+    while len(result) < max_search_results and any(depth < len(by_category[cat]) for cat in order):
+        for cat in order:
+            if len(result) >= max_search_results:
+                break
+            group = by_category[cat]
+            if depth < len(group):
+                result.append(group[depth])
+        depth += 1
+    return result
 
 
 def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_per_source: int) -> dict[str, str]:
