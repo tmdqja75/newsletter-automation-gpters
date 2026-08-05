@@ -9,6 +9,7 @@ artifacts, and return a compact candidate list.
 import json
 import re
 from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -130,6 +131,16 @@ def _parse_hn_date(created_at: str) -> str | None:
         return None
 
 
+def _parse_tavily_date(raw: str | None) -> str | None:
+    """Parse Tavily's published_date (RFC 2822, e.g. 'Tue, 28 Apr 2026 17:00:03 GMT')."""
+    if not raw:
+        return None
+    try:
+        return parsedate_to_datetime(raw).strftime("%Y-%m-%d")
+    except (TypeError, ValueError):
+        return None
+
+
 def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     """Convert raw search results into preliminary ResearchCandidate dicts.
 
@@ -152,7 +163,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
             if tool == "tavily":
                 url = item.get("url", "")
                 title = item.get("title", "")
-                published_at = None
+                published_at = _parse_tavily_date(item.get("published_date"))
                 score = float(item.get("score", 0) or 0)
                 summary = item.get("content", "")
                 source = urlparse(url).netloc
@@ -190,7 +201,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
             if category == "real_world_usecases":
                 score += 0.3
             if not published_at:
-                score -= 0.5
+                score -= 0.2
 
             candidate = {
                 "title": title,
@@ -434,7 +445,7 @@ def _persist_artifacts(publication_date: str, raw_results: list[dict], candidate
 
 def _collect_weekly_research_core(
     publication_date: str,
-    max_search_results: int = 20,
+    max_search_results: int = 30,
     max_fetches: int = 8,
     max_chars_per_source: int = 1500,
     summarizer=None,
@@ -482,7 +493,7 @@ def _collect_weekly_research_core(
 
 def collect_weekly_research(
     publication_date: str,
-    max_search_results: int = 20,
+    max_search_results: int = 30,
     max_fetches: int = 8,
     max_chars_per_source: int = 1500,
 ) -> str:

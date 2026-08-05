@@ -155,8 +155,8 @@ def test_normalize_candidates_handles_tavily_hn_blog():
     tavily_c = next(c for c in candidates if c["title"] == "Tavily Item")
     assert tavily_c["source"] == "news.example.com"
     assert tavily_c["published_at"] is None
-    # tavily_score (0.75) - 0.5 (missing published_at) = 0.25
-    assert tavily_c["score"] == 0.25
+    # tavily_score (0.75) - 0.2 (missing published_at) = 0.55
+    assert tavily_c["score"] == 0.55
     assert tavily_c["topic_type"] == "main"
     assert tavily_c["fetched"] is False
 
@@ -174,17 +174,46 @@ def test_normalize_candidates_handles_tavily_hn_blog():
     assert blog_c["score"] == 0.0
 
 
-def test_normalize_candidates_study_resources_topic_type():
+def test_normalize_candidates_parses_tavily_published_date():
     raw_results = [
         {
-            "category": "study_resources", "tool": "tavily", "query": "...",
-            "items": [{"title": "Tutorial", "url": "https://example.com/tut",
-                       "content": "snippet", "score": 0.5}],
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [{"title": "Dated Item", "url": "https://news.example.com/dated",
+                       "content": "snippet", "score": 0.5,
+                       "published_date": "Tue, 28 Apr 2026 17:00:03 GMT"}],
         },
     ]
 
     candidates = _normalize_candidates(raw_results)
-    assert candidates[0]["topic_type"] == "study_cafe"
+
+    assert candidates[0]["published_at"] == "2026-04-28"
+    # tavily_score (0.5), no missing-date penalty since dated
+    assert candidates[0]["score"] == 0.5
+
+
+def test_normalize_candidates_tavily_bad_date_falls_back_to_none():
+    raw_results = [
+        {
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [{"title": "Garbage Date", "url": "https://news.example.com/garbage",
+                       "content": "snippet", "score": 0.5,
+                       "published_date": "not a date"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    assert candidates[0]["published_at"] is None
+    # 0.5 - 0.2 (missing/unparseable date penalty)
+    assert candidates[0]["score"] == 0.3
+
+
+def test_max_search_results_default_is_30():
+    import inspect
+    from src.tools.research_collector import _collect_weekly_research_core, collect_weekly_research
+
+    assert inspect.signature(_collect_weekly_research_core).parameters["max_search_results"].default == 30
+    assert inspect.signature(collect_weekly_research).parameters["max_search_results"].default == 30
 
 
 def test_normalize_candidates_skips_missing_url_or_title():
