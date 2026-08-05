@@ -11,24 +11,23 @@ CATEGORY_LABELS_KO = {
     "model_releases": "모델발표",
     "agents_automation": "에이전트",
     "research_papers": "연구",
-    "tools_infra": "도구",
-    "industry_business": "산업동향",
-    "policy_society": "정책",
-    "study_resources": "학습자료",
     "real_world_usecases": "활용사례",
     "official_blogs": "공식블로그",
     "pytorch_kr_community": "커뮤니티",
+    "github_trending": "오픈소스",
 }
+
+_NOVELTY_CATEGORIES = {"real_world_usecases", "github_trending"}
 
 
 def _importance(candidate: dict) -> str:
     """Apply the rule the old research prompt asked a model to eyeball.
 
     The score formula in research_collector already encodes it:
-    real_world_usecases +0.3, HN >50 points +0.2, missing date -0.5.
+    real_world_usecases/github_trending +0.3, HN >50 points +0.2, missing date -0.2.
     """
     score = candidate.get("score") or 0
-    if candidate.get("category") == "real_world_usecases" or score >= 0.8:
+    if candidate.get("category") in _NOVELTY_CATEGORIES or score >= 0.8:
         return "높음"
     return "중간" if score >= 0.4 else "낮음"
 

@@ -54,6 +54,13 @@ def test_render_shows_original_url_only_when_different():
     assert "https://origin.example.com/2" in render_research_results({"candidates": [diff]})
 
 
+def test_render_labels_github_trending_as_high_importance():
+    candidate = _candidate(1, category="github_trending", score=0.3)
+    out = render_research_results({"publication_date": "2026-08-05", "candidates": [candidate]})
+    assert "카테고리: 오픈소스" in out
+    assert "중요도: 높음" in out
+
+
 def test_selection_list_numbering_matches_full_report():
     """The regression test for the drift bug: both renderers agree on numbering."""
     candidates = [_candidate(i) for i in range(1, 6)]
