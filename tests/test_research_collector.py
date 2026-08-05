@@ -340,6 +340,49 @@ def test_normalize_candidates_routes_blog_case_studies_to_real_world_usecases():
     assert announcement["score"] == 0.0
 
 
+def test_normalize_candidates_github_search_branch():
+    raw_results = [
+        {
+            "category": "github_trending", "tool": "github_search", "query": "topic:ai-agents",
+            "items": [{"full_name": "microsoft/skill-recorder",
+                       "url": "https://github.com/microsoft/skill-recorder",
+                       "description": "Records sessions", "stars": 1763,
+                       "created_at": "2026-07-29T00:00:00Z"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    assert len(candidates) == 1
+    c = candidates[0]
+    assert c["title"] == "microsoft/skill-recorder"
+    assert c["category"] == "github_trending"
+    assert c["published_at"] == "2026-07-29"
+    assert c["source"] == "github.com"
+    assert c["score"] == 0.3  # 0.0 base + 0.3 novelty boost
+
+
+def test_normalize_candidates_github_trending_scrape_branch():
+    raw_results = [
+        {
+            "category": "github_trending", "tool": "github_trending_scrape", "query": None,
+            "items": [{"full_name": "block/buzz", "url": "https://github.com/block/buzz",
+                       "description": "A hive mind communication platform",
+                       "stars_this_week": "7,372 stars this week",
+                       "published_at": "2026-08-05"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    assert len(candidates) == 1
+    c = candidates[0]
+    assert c["title"] == "block/buzz"
+    assert c["published_at"] == "2026-08-05"
+    assert "7,372 stars this week" in c["summary"]
+    assert c["score"] == 0.3
+
+
 def test_dedupe_candidates_by_url_and_title():
     candidates = [
         {"title": "Same Title", "url": "https://example.com/page?utm_source=x", "score": 0.5},

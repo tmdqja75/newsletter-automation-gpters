@@ -163,6 +163,9 @@ def _is_listicle_title(title: str) -> bool:
     return any(pattern.search(title) for pattern in _LISTICLE_TITLE_PATTERNS)
 
 
+_NOVELTY_BOOST_CATEGORIES = {"real_world_usecases", "github_trending"}
+
+
 _CASE_STUDY_KEYWORDS = ("customer", "story", "case stud")
 
 
@@ -225,6 +228,23 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 source = "discuss.pytorch.kr"
                 original_url = item.get("original_url") or url
                 prefetched_content = summary
+            elif tool == "github_search":
+                url = item.get("url", "")
+                title = item.get("full_name", "")
+                created_at = item.get("created_at", "")
+                published_at = created_at[:10] if created_at else None
+                score = 0.0
+                summary = item.get("description", "")
+                source = "github.com"
+            elif tool == "github_trending_scrape":
+                url = item.get("url", "")
+                title = item.get("full_name", "")
+                published_at = item.get("published_at")  # ponytail: approximation — trending page has no per-repo date, this is the run's publication_date
+                score = 0.0
+                description = item.get("description", "")
+                stars_note = item.get("stars_this_week", "")
+                summary = f"{description} ({stars_note})" if stars_note else description
+                source = "github.com"
             else:
                 continue
 
@@ -233,7 +253,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
             if _is_listicle_title(title):
                 continue
 
-            if item_category == "real_world_usecases":
+            if item_category in _NOVELTY_BOOST_CATEGORIES:
                 score += 0.3
             if not published_at:
                 score -= 0.2
