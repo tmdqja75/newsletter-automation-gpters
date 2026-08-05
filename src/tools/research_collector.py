@@ -24,29 +24,19 @@ _MONTH_NAMES_EN = [
     "July", "August", "September", "October", "November", "December",
 ]
 
-# Maps research categories to the topic_type assigned during normalization.
-# Categories not listed here default to "main". The batch summarizer may
-# override topic_type per candidate based on actual content.
-CATEGORY_TOPIC_TYPE: dict[str, str] = {
-    "study_resources": "study_cafe",
-}
 DEFAULT_TOPIC_TYPE = "main"
 
-# Query plan covering 8 research categories, plus 2 source-routing
-# categories: "official_blogs" and PyTorch-KR (10 total).
+# Query-plan entries across 4 categories that carry a real search query
+# (model_releases, agents_automation, research_papers, real_world_usecases),
+# plus 2 source-routing categories with dedicated fetchers and no query
+# (official_blogs, pytorch_kr_community).
 # {year}/{month}/{month_en} placeholders are filled by _build_query_plan() from publication_date.
 RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "model_releases", "tool": "tavily", "query": "{year}년 {month}월 AI 모델 출시"},
     {"category": "model_releases", "tool": "tavily", "query": "{month_en} {year} new LLM model release"},
     {"category": "agents_automation", "tool": "hn", "query": "AI agent"},
-    {"category": "agents_automation", "tool": "tavily", "query": "{year}년 {month}월 AI 에이전트 자동화"},
     {"category": "research_papers", "tool": "tavily", "query": "arXiv AI agent {month_en} {year}"},
-    {"category": "tools_infra", "tool": "tavily", "query": "{month_en} {year} AI developer tools"},
-    {"category": "industry_business", "tool": "tavily", "query": "{year}년 {month}월 AI 스타트업 산업 동향"},
-    {"category": "policy_society", "tool": "tavily", "query": "{month_en} {year} AI policy regulation"},
-    {"category": "study_resources", "tool": "tavily", "query": "{month_en} {year} AI agent tutorial course"},
     {"category": "real_world_usecases", "tool": "hn", "query": "Show HN AI agent"},
-    {"category": "real_world_usecases", "tool": "tavily", "query": '"AI agent" deployed production results {year}'},
     {"category": "official_blogs", "tool": "blog", "query": None},
     {"category": "pytorch_kr_community", "tool": "pytorch_kr", "query": None},
 ]
@@ -179,7 +169,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     for result in raw_results:
         category = result["category"]
         tool = result["tool"]
-        topic_type = CATEGORY_TOPIC_TYPE.get(category, DEFAULT_TOPIC_TYPE)
+        topic_type = DEFAULT_TOPIC_TYPE
 
         for item in result["items"]:
             original_url = None
