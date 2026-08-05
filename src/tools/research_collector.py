@@ -13,8 +13,8 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .search_tools import search_ai_news, search_hackernews, search_pytorch_kr_forum
-from .content_tools import fetch_article_content, fetch_official_blog_posts
+from .search_tools import search_ai_news, search_hackernews, search_pytorch_kr_forum, search_github_repos
+from .content_tools import fetch_article_content, fetch_official_blog_posts, fetch_github_trending
 from ..config import ARTICLES_DIR
 from .research_report import render_research_results
 
@@ -26,10 +26,10 @@ _MONTH_NAMES_EN = [
 
 DEFAULT_TOPIC_TYPE = "main"
 
-# Query-plan entries across 4 categories that carry a real search query
-# (model_releases, agents_automation, research_papers, real_world_usecases),
-# plus 2 source-routing categories with dedicated fetchers and no query
-# (official_blogs, pytorch_kr_community).
+# Query-plan entries across 5 categories that carry a real search query
+# (model_releases, agents_automation, research_papers, real_world_usecases,
+# github_trending), plus 2 source-routing categories with dedicated
+# fetchers and no query (official_blogs, pytorch_kr_community).
 # {year}/{month}/{month_en} placeholders are filled by _build_query_plan() from publication_date.
 RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "model_releases", "tool": "tavily", "query": "{year}년 {month}월 AI 모델 출시"},
@@ -39,6 +39,9 @@ RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "real_world_usecases", "tool": "hn", "query": "Show HN AI agent"},
     {"category": "official_blogs", "tool": "blog", "query": None},
     {"category": "pytorch_kr_community", "tool": "pytorch_kr", "query": None},
+    {"category": "github_trending", "tool": "github_search", "query": "topic:ai-agents"},
+    {"category": "github_trending", "tool": "github_search", "query": "agent AI in:name,description"},
+    {"category": "github_trending", "tool": "github_trending_scrape", "query": None},
 ]
 
 
@@ -104,6 +107,19 @@ def _run_searches(query_plan: list[dict], publication_date: str) -> tuple[list[d
                 forum_posts = forum_result.get("posts", [])
                 if isinstance(forum_posts, list):
                     items = forum_posts
+            elif tool == "github_search":
+                parsed = json.loads(search_github_repos(query, publication_date, max_results=6))
+                if isinstance(parsed, dict) and "error" in parsed:
+                    errors.append(f"{category}/{tool}: {parsed['error']}")
+                elif isinstance(parsed, list):
+                    items = parsed
+            elif tool == "github_trending_scrape":
+                trending_result = json.loads(fetch_github_trending(publication_date))
+                for trending_error in trending_result.get("errors", []):
+                    errors.append(f"{category}/{tool}: {trending_error}")
+                items = trending_result.get("posts", [])
+                for trending_item in items:
+                    trending_item["published_at"] = publication_date
         except Exception as exc:
             errors.append(f"{category}/{tool}: {exc}")
             items = []

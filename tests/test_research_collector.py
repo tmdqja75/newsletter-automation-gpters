@@ -27,6 +27,7 @@ EXPECTED_CATEGORIES = {
     "real_world_usecases",
     "official_blogs",
     "pytorch_kr_community",
+    "github_trending",
 }
 
 
@@ -92,10 +93,21 @@ def test_run_searches_collects_items_and_tags_category(monkeypatch):
     def fake_search_pytorch_kr_forum(publication_date):
         return json.dumps({"publication_date": publication_date, "posts": []})
 
+    def fake_search_github_repos(query, publication_date, max_results=6):
+        return json.dumps([
+            {"full_name": "example/repo", "url": "https://github.com/example/repo",
+             "description": "desc", "stars": 100, "created_at": "2026-06-10T00:00:00Z"}
+        ])
+
+    def fake_fetch_github_trending(publication_date):
+        return json.dumps({"publication_date": publication_date, "posts": []})
+
     monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", fake_search_hackernews)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", fake_search_pytorch_kr_forum)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos", fake_search_github_repos)
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", fake_fetch_github_trending)
 
     plan = _build_query_plan("2026-06-17")
     raw_results, errors = _run_searches(plan, "2026-06-17")
@@ -108,6 +120,8 @@ def test_run_searches_collects_items_and_tags_category(monkeypatch):
     blog_entries = [r for r in raw_results if r["tool"] == "blog"]
     assert len(blog_entries) == 1
     assert blog_entries[0]["items"][0]["title"] == "Blog post"
+    github_search_entries = [r for r in raw_results if r["tool"] == "github_search"]
+    assert github_search_entries and all(r["items"] for r in github_search_entries)
 
 
 def test_run_searches_captures_errors_without_raising(monkeypatch):
@@ -118,12 +132,43 @@ def test_run_searches_captures_errors_without_raising(monkeypatch):
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos", boom)
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", boom)
 
     plan = _build_query_plan("2026-06-17")
     raw_results, errors = _run_searches(plan, "2026-06-17")
 
     assert len(errors) == len(plan)
     assert all(r["items"] == [] for r in raw_results)
+
+
+def test_run_searches_injects_publication_date_into_trending_items(monkeypatch):
+    def fake_fetch_github_trending(publication_date):
+        return json.dumps({"publication_date": publication_date,
+                            "posts": [{"full_name": "a/b", "url": "https://github.com/a/b",
+                                       "description": "d", "stars_this_week": "1 stars this week"}]})
+
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", fake_fetch_github_trending)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos",
+                         lambda query, publication_date, max_results=6: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news",
+                         lambda query, max_results=10, article_date=None: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews",
+                         lambda query, num_results=10, publication_date=None: json.dumps([]))
+    monkeypatch.setattr(
+        "src.tools.research_collector.fetch_official_blog_posts",
+        lambda publication_date: json.dumps({"posts": {"openai": [], "anthropic": [], "deepmind": []}}),
+    )
+    monkeypatch.setattr(
+        "src.tools.research_collector.search_pytorch_kr_forum",
+        lambda publication_date: json.dumps({"posts": []}),
+    )
+
+    plan = _build_query_plan("2026-06-17")
+    raw_results, errors = _run_searches(plan, "2026-06-17")
+
+    trending_entry = next(r for r in raw_results if r["tool"] == "github_trending_scrape")
+    assert trending_entry["items"][0]["published_at"] == "2026-06-17"
 
 
 def test_normalize_candidates_handles_tavily_hn_blog():
@@ -518,6 +563,10 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", fake_search_pytorch_kr_forum)
     monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos",
+                         lambda query, publication_date, max_results=6: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending",
+                         lambda publication_date: json.dumps({"publication_date": publication_date, "posts": []}))
 
     result = _collect_weekly_research_core("2026-06-17", summarizer=fake_summarizer)
 
@@ -541,6 +590,8 @@ def test_collect_weekly_research_wrapper_returns_valid_json_on_search_failure(mo
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos", boom)
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", boom)
 
     output = collect_weekly_research("2026-06-17")
     parsed = json.loads(output)
