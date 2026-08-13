@@ -67,12 +67,15 @@ def render_research_results(result: dict) -> str:
 
 
 def render_selection_list(candidates: list[dict]) -> str:
-    """Render the compact one-line-per-candidate list shown at the interrupt."""
-    return "\n".join(
-        f"{i:2}. [{_label(c)}] {c['title']}"
-        f"  ({c.get('published_at') or '날짜 미상'}, 중요도 {_importance(c)})"
-        for i, c in enumerate(candidates, 1)
-    )
+    """Render the compact per-candidate list (with source URL) shown at the interrupt."""
+    lines = []
+    for i, c in enumerate(candidates, 1):
+        lines.append(
+            f"{i:2}. [{_label(c)}] {c['title']}"
+            f"  ({c.get('published_at') or '날짜 미상'}, 중요도 {_importance(c)})"
+        )
+        lines.append(f"     출처: {c['url']}")
+    return "\n".join(lines)
 
 
 def parse_selection(text, candidates: list[dict], expected: int) -> list[dict]:
