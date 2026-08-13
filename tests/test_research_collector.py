@@ -427,9 +427,9 @@ def test_date_filter_drops_out_of_window_and_keeps_undated():
 
 def test_rank_and_truncate_sorts_by_score_and_limits():
     candidates = [
-        {"title": "Low", "score": 0.1},
-        {"title": "High", "score": 0.9},
-        {"title": "Mid", "score": 0.5},
+        {"title": "Low", "score": 0.1, "_query_key": "tool:query"},
+        {"title": "High", "score": 0.9, "_query_key": "tool:query"},
+        {"title": "Mid", "score": 0.5, "_query_key": "tool:query"},
     ]
 
     result = _rank_and_truncate(candidates, max_search_results=2)
@@ -443,9 +443,9 @@ def test_rank_and_truncate_interleaves_categories_so_none_dominates():
     github_trending (flat 0.3 boost) filled 21/30 slots while
     pytorch_kr_community/official_blogs (flat 0.0, no boost) got zero."""
     candidates = (
-        [{"title": f"gh{i}", "category": "github_trending", "score": 0.3} for i in range(20)]
-        + [{"title": f"pt{i}", "category": "pytorch_kr_community", "score": 0.0} for i in range(20)]
-        + [{"title": "top", "category": "model_releases", "score": 0.9}]
+        [{"title": f"gh{i}", "category": "github_trending", "score": 0.3, "_query_key": "tool:query"} for i in range(20)]
+        + [{"title": f"pt{i}", "category": "pytorch_kr_community", "score": 0.0, "_query_key": "tool:query"} for i in range(20)]
+        + [{"title": "top", "category": "model_releases", "score": 0.9, "_query_key": "tool:query"}]
     )
 
     result = _rank_and_truncate(candidates, max_search_results=9)
@@ -458,13 +458,30 @@ def test_rank_and_truncate_interleaves_categories_so_none_dominates():
 
 def test_rank_and_truncate_preserves_score_order_within_category():
     candidates = [
-        {"title": "gh-low", "category": "github_trending", "score": 0.1},
-        {"title": "gh-high", "category": "github_trending", "score": 0.9},
+        {"title": "gh-low", "category": "github_trending", "score": 0.1, "_query_key": "tool:query"},
+        {"title": "gh-high", "category": "github_trending", "score": 0.9, "_query_key": "tool:query"},
     ]
 
     result = _rank_and_truncate(candidates, max_search_results=2)
 
     assert [c["title"] for c in result] == ["gh-high", "gh-low"]
+
+
+def test_rank_and_truncate_interleaves_queries_within_category():
+    """Regression for the bug where the first-declared query in a category
+    always won every tie: with 2 query groups of 5 tied-score items each,
+    a truncation that only fits ~6 must include items from both groups,
+    not just the first-declared one."""
+    candidates = (
+        [{"title": f"a{i}", "category": "agents_automation", "score": 0.0, "_query_key": "hn:AI agent"} for i in range(5)]
+        + [{"title": f"b{i}", "category": "agents_automation", "score": 0.0, "_query_key": "hn:Claude Code"} for i in range(5)]
+    )
+
+    result = _rank_and_truncate(candidates, max_search_results=6)
+    titles = {c["title"] for c in result}
+
+    assert any(t.startswith("a") for t in titles)
+    assert any(t.startswith("b") for t in titles)
 
 
 def test_fetch_top_candidates_limits_and_truncates(monkeypatch):

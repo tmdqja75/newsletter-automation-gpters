@@ -35,12 +35,21 @@ RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "model_releases", "tool": "tavily", "query": "{year}년 {month}월 AI 모델 출시"},
     {"category": "model_releases", "tool": "tavily", "query": "{month_en} {year} new LLM model release"},
     {"category": "agents_automation", "tool": "hn", "query": "AI agent"},
+    {"category": "agents_automation", "tool": "hn", "query": "Claude Code"},
+    {"category": "agents_automation", "tool": "hn", "query": "coding agent"},
+    {"category": "agents_automation", "tool": "tavily", "query": "AI coding agent harness comparison"},
+    {"category": "agents_automation", "tool": "tavily", "query": "AI agent framework launch {month_en} {year}"},
+    {"category": "agents_automation", "tool": "tavily", "query": "AI agent startup funding {month_en} {year}"},
     {"category": "research_papers", "tool": "tavily", "query": "arXiv AI agent {month_en} {year}"},
+    {"category": "research_papers", "tool": "tavily", "query": "multi-agent orchestration production lessons learned"},
     {"category": "real_world_usecases", "tool": "hn", "query": "Show HN AI agent"},
+    {"category": "real_world_usecases", "tool": "tavily", "query": "how teams integrate AI agents into workflow"},
     {"category": "official_blogs", "tool": "blog", "query": None},
     {"category": "pytorch_kr_community", "tool": "pytorch_kr", "query": None},
     {"category": "github_trending", "tool": "github_search", "query": "topic:ai-agents"},
     {"category": "github_trending", "tool": "github_search", "query": "agent AI in:name,description"},
+    {"category": "github_trending", "tool": "github_search", "query": "token compression OR context compression LLM"},
+    {"category": "github_trending", "tool": "github_search", "query": "agent harness"},
     {"category": "github_trending", "tool": "github_trending_scrape", "query": None},
 ]
 
@@ -188,6 +197,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     for result in raw_results:
         category = result["category"]
         tool = result["tool"]
+        query_key = f"{tool}:{result['query']}"
         topic_type = DEFAULT_TOPIC_TYPE
 
         for item in result["items"]:
@@ -270,6 +280,7 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 "category": item_category,
                 "score": round(score, 3),
                 "fetched": False,
+                "_query_key": query_key,
             }
             if original_url is not None:
                 candidate["original_url"] = original_url
@@ -343,37 +354,45 @@ def _date_filter(candidates: list[dict], publication_date: str) -> list[dict]:
     return filtered
 
 
-def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[dict]:
-    """Interleave candidates across categories (best score first within each
-    category) round-robin, so one heavily-boosted or high-volume category
-    (e.g. github_trending's flat +0.3) can't crowd out categories with no
-    boost mechanism at all (official_blogs, pytorch_kr_community sit at flat
-    0.0). Reduces to a plain score sort when every candidate shares one
-    category (or has none).
+def _interleave(groups: list[list[dict]]) -> list[dict]:
+    """Round-robin merge groups, one item from each per pass (each group
+    already sorted by priority), so no single group — category or query —
+    can crowd out the others just by being larger or declared first.
     """
-    by_category: dict[object, list[dict]] = {}
-    order: list[object] = []
-    for c in candidates:
-        cat = c.get("category")
-        if cat not in by_category:
-            by_category[cat] = []
-            order.append(cat)
-        by_category[cat].append(c)
-
-    for group in by_category.values():
-        group.sort(key=lambda c: c["score"], reverse=True)
-
     result: list[dict] = []
     depth = 0
-    while len(result) < max_search_results and any(depth < len(by_category[cat]) for cat in order):
-        for cat in order:
-            if len(result) >= max_search_results:
-                break
-            group = by_category[cat]
-            if depth < len(group):
-                result.append(group[depth])
+    while any(depth < len(g) for g in groups):
+        for g in groups:
+            if depth < len(g):
+                result.append(g[depth])
         depth += 1
     return result
+
+
+def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[dict]:
+    """Interleave fairly at two levels: queries within a category, then
+    categories within the run. Prevents both a high-volume query and a
+    high-volume category from crowding out quieter ones. Reduces to a plain
+    score sort when every candidate shares one category and one query.
+    """
+    by_category: dict[object, dict[object, list[dict]]] = {}
+    cat_order: list[object] = []
+    for c in candidates:
+        cat = c.get("category")
+        query_key = c.get("_query_key")
+        if cat not in by_category:
+            by_category[cat] = {}
+            cat_order.append(cat)
+        by_category[cat].setdefault(query_key, []).append(c)
+
+    category_lists: list[list[dict]] = []
+    for cat in cat_order:
+        query_groups = list(by_category[cat].values())
+        for group in query_groups:
+            group.sort(key=lambda c: c["score"], reverse=True)
+        category_lists.append(_interleave(query_groups))
+
+    return _interleave(category_lists)[:max_search_results]
 
 
 def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_per_source: int) -> dict[str, str]:
@@ -560,6 +579,7 @@ def _collect_weekly_research_core(
     # before persisting so the forum text does not ship twice.
     for candidate in candidates:
         candidate.pop("prefetched_content", None)
+        candidate.pop("_query_key", None)
 
     errors.extend(_summarize_candidates(candidates, fetched_content, summarizer))
     errors.extend(_persist_artifacts(publication_date, raw_results, candidates))

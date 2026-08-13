@@ -112,6 +112,7 @@ def test_normalize_candidates_preserves_forum_context_and_primary_source():
         "category": "pytorch_kr_community",
         "score": 0.0,
         "fetched": False,
+        "_query_key": "pytorch_kr:None",
     }]
 
 
