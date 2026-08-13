@@ -389,7 +389,10 @@ def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[
     for cat in cat_order:
         query_groups = list(by_category[cat].values())
         for group in query_groups:
-            group.sort(key=lambda c: c["score"], reverse=True)
+            group.sort(
+                key=lambda c: c["relevance_score"] if c.get("relevance_score") is not None else c["score"],
+                reverse=True,
+            )
         category_lists.append(_interleave(query_groups))
 
     return _interleave(category_lists)[:max_search_results]
@@ -463,6 +466,123 @@ def _default_summarizer(items: list[dict]) -> list[dict]:
         return json.loads(text)
     except Exception:
         return []
+
+
+RELEVANCE_RUBRIC = """You score AI-agent-news candidates for a Korean newsletter ("Automata") read by AI agent enthusiasts and builders.
+
+Score each candidate 0-10 on how likely it is to make a genuinely engaging newsletter item, plus whether it's junk.
+
+HIGH value (7-10) — the newsletter's proven winning themes:
+- Practical Claude Code / coding-agent tips, workflow hacks, token-saving techniques
+- Agent harness or framework comparisons (e.g. two competing open-source agent projects)
+- Offbeat or whimsical real-world agent applications with genuine substance (not just a press release)
+- Industry drama or controversy involving an AI platform and its developer ecosystem
+- Coding/agent benchmark head-to-head comparisons
+- Open-source tools solving one concrete, specific developer pain point (not generic model releases)
+
+MEDIUM value (4-6):
+- Generic new model release announcements
+- Official company blog posts
+- Research papers with practical deployment relevance
+- General AI industry news
+
+LOW value / JUNK (0-3) — set is_junk=true for these:
+- Job postings / recruiting pages
+- Bare homepage stubs or link-redirect wrapper pages with no real article content
+- Generic benchmark table dumps with no narrative
+- Marketing/conference promo pages
+- Near-duplicate of a bigger story already covered elsewhere in this same list
+
+Return a JSON object of the form {"results": [...]}, where "results" is an array with one object per input item, in the SAME ORDER as the input, each with exactly these keys:
+- "url": string, copied exactly from input
+- "score": integer 0-10
+- "is_junk": boolean
+- "reason": string, one short phrase (<=15 words)
+
+Return ONLY the JSON object. No other text.
+"""
+
+_JUNK_SCORE_THRESHOLD = 3  # drop candidates scored <= this, matching the rubric's JUNK band (0-3)
+
+
+def _default_relevance_scorer(items: list[dict]) -> list[dict]:
+    """Score candidates for newsletter relevance in a single batch LLM call.
+
+    Args:
+        items: list of {"url", "title", "source", "category", "snippet"} dicts.
+
+    Returns:
+        List of {"url", "score", "is_junk", "reason"} dicts. Returns [] on
+        any error (caller keeps existing heuristic scores unchanged).
+    """
+    from openai import OpenAI
+    from .. import config
+
+    try:
+        client = OpenAI(api_key=config.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model=config.RESEARCH_RELEVANCE_MODEL,
+            messages=[
+                {"role": "system", "content": RELEVANCE_RUBRIC},
+                {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
+            ],
+            response_format={"type": "json_object"},
+        )
+        parsed = json.loads(response.choices[0].message.content)
+        return parsed["results"]
+    except Exception:
+        return []
+
+
+def _score_relevance(candidates: list[dict], scorer) -> list[str]:
+    """Score every candidate's newsletter relevance in place via `scorer`,
+    then drop candidates scored at or below `_JUNK_SCORE_THRESHOLD`.
+
+    Uses the model's numeric score against a fixed threshold to decide what
+    counts as junk, NOT the model's own is_junk boolean — testing showed the
+    boolean cutoff disagreed with the score-based judgment more often than
+    the underlying reasoning actually differed (boundary noise, not a real
+    quality signal). is_junk is still stored on the candidate for visibility.
+
+    Returns a list of error messages (empty on full success). Never raises;
+    on any failure, candidates keep score=None and nothing is dropped, so
+    the pipeline falls back to the existing heuristic-score ranking.
+    """
+    if not candidates:
+        return []
+
+    items = [
+        {
+            "url": c["url"],
+            "title": c["title"],
+            "source": c["source"],
+            "category": c["category"],
+            "snippet": (c.get("summary") or "")[:300],
+        }
+        for c in candidates
+    ]
+
+    errors: list[str] = []
+    try:
+        results = scorer(items)
+    except Exception as exc:
+        results = []
+        errors.append(f"relevance_scorer: {exc}")
+
+    by_url = {r["url"]: r for r in results if isinstance(r, dict) and "url" in r}
+    if not by_url:
+        errors.append("relevance_scorer: no valid scores returned, skipping relevance filter")
+        for c in candidates:
+            c["relevance_score"] = None
+            c["is_junk"] = False
+        return errors
+
+    for c in candidates:
+        r = by_url.get(c["url"])
+        c["relevance_score"] = r.get("score") if r else None
+        c["is_junk"] = bool(r.get("is_junk")) if r else False
+
+    return errors
 
 
 def _summarize_candidates(candidates: list[dict], fetched_content: dict[str, str], summarizer) -> list[str]:
@@ -550,6 +670,7 @@ def _collect_weekly_research_core(
     max_fetches: int = 8,
     max_chars_per_source: int = 1500,
     summarizer=None,
+    relevance_scorer=None,
 ) -> dict:
     """Run the full deterministic research collection pipeline.
 
@@ -570,6 +691,17 @@ def _collect_weekly_research_core(
 
     candidates = _dedupe_candidates(candidates)
     candidates = _date_filter(candidates, publication_date)
+
+    # Score relevance on the full deduped/date-filtered pool, before
+    # truncation, so the LLM judgment actually drives what survives.
+    if relevance_scorer is None:
+        relevance_scorer = _default_relevance_scorer
+    errors.extend(_score_relevance(candidates, relevance_scorer))
+    candidates = [
+        c for c in candidates
+        if not (c.get("relevance_score") is not None and c["relevance_score"] <= _JUNK_SCORE_THRESHOLD)
+    ]
+
     candidates = _rank_and_truncate(candidates, max_search_results)
 
     fetched_content = _fetch_top_candidates(candidates, max_fetches, max_chars_per_source)

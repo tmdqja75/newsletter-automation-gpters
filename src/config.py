@@ -8,12 +8,16 @@ load_dotenv()
 # API Keys
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Model configuration
 MODEL_NAME = os.getenv("MODEL_NAME", "claude-sonnet-4-6")
 
 # Cheap/fast model used by collect_weekly_research for batch summarization.
 RESEARCH_COLLECTOR_MODEL = os.getenv("RESEARCH_COLLECTOR_MODEL", "claude-haiku-4-5")
+
+# Model used for the pre-ranking relevance/junk-filter pass in research_collector.
+RESEARCH_RELEVANCE_MODEL = os.getenv("RESEARCH_RELEVANCE_MODEL", "gpt-5.4-nano")
 
 
 def to_model_spec(model_name: str) -> str:

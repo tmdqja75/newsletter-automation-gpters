@@ -13,6 +13,8 @@ from src.tools.research_collector import (
     _date_filter,
     _rank_and_truncate,
     _fetch_top_candidates,
+    _score_relevance,
+    _JUNK_SCORE_THRESHOLD,
     _summarize_candidates,
     _persist_artifacts,
     _collect_weekly_research_core,
@@ -530,6 +532,61 @@ def test_fetch_top_candidates_handles_failure(monkeypatch):
     assert candidates[0]["fetched"] is False
 
 
+def _relevance_candidate(title, url, score=1.0):
+    return {"title": title, "url": url, "source": "example.com", "category": "model_releases",
+            "summary": "snippet", "score": score}
+
+
+def test_score_relevance_sets_score_and_junk_fields():
+    candidates = [
+        _relevance_candidate("Good", "https://example.com/good"),
+        _relevance_candidate("Junk", "https://example.com/junk"),
+    ]
+
+    def fake_scorer(items):
+        return [
+            {"url": "https://example.com/good", "score": 8, "is_junk": False, "reason": "great"},
+            {"url": "https://example.com/junk", "score": 2, "is_junk": True, "reason": "job posting"},
+        ]
+
+    errors = _score_relevance(candidates, fake_scorer)
+
+    assert errors == []
+    good = next(c for c in candidates if c["title"] == "Good")
+    junk = next(c for c in candidates if c["title"] == "Junk")
+    assert good["relevance_score"] == 8
+    assert good["is_junk"] is False
+    assert junk["relevance_score"] == 2
+    assert junk["is_junk"] is True
+    assert junk["relevance_score"] <= _JUNK_SCORE_THRESHOLD
+
+
+def test_score_relevance_scorer_raises_falls_back_without_dropping():
+    candidates = [_relevance_candidate("A", "https://example.com/a")]
+
+    def broken_scorer(items):
+        raise RuntimeError("api down")
+
+    errors = _score_relevance(candidates, broken_scorer)
+
+    assert any("relevance_scorer" in e for e in errors)
+    assert candidates[0]["relevance_score"] is None
+    assert candidates[0]["is_junk"] is False
+
+
+def test_score_relevance_malformed_response_falls_back_without_dropping():
+    candidates = [_relevance_candidate("A", "https://example.com/a")]
+
+    def malformed_scorer(items):
+        return [{"score": 8}]  # missing "url"
+
+    errors = _score_relevance(candidates, malformed_scorer)
+
+    assert any("relevance_scorer" in e for e in errors)
+    assert candidates[0]["relevance_score"] is None
+    assert candidates[0]["is_junk"] is False
+
+
 def test_summarize_candidates_merges_enrichment_by_url():
     candidates = [
         {"title": "A", "url": "https://example.com/a", "source": "example.com",
@@ -658,7 +715,9 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
     monkeypatch.setattr("src.tools.research_collector.fetch_github_trending",
                          lambda publication_date: json.dumps({"publication_date": publication_date, "posts": []}))
 
-    result = _collect_weekly_research_core("2026-06-17", summarizer=fake_summarizer)
+    result = _collect_weekly_research_core(
+        "2026-06-17", summarizer=fake_summarizer, relevance_scorer=lambda items: []
+    )
 
     assert result["publication_date"] == "2026-06-17"
     assert result["total_found"] > 0
@@ -668,6 +727,50 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
     artifacts_dir = tmp_path / "artifacts" / "research" / "2026-06-17"
     assert (artifacts_dir / "raw_search_results.json").exists()
     assert (artifacts_dir / "candidates.json").exists()
+
+
+def test_collect_weekly_research_core_drops_junk_via_relevance_scorer(monkeypatch, tmp_path):
+    """End-to-end wiring: a relevance_scorer that flags an item as junk
+    must remove it from the pipeline's output before ranking/truncation."""
+    monkeypatch.chdir(tmp_path)
+
+    def fake_search_ai_news(query, max_results=10, article_date=None):
+        return json.dumps([
+            {"title": "Good Article", "url": "https://example.com/good",
+             "content": "snippet", "score": 0.8},
+            {"title": "Job Posting", "url": "https://example.com/junk",
+             "content": "snippet", "score": 0.8},
+        ])
+
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews",
+                         lambda query, num_results=10, publication_date=None: json.dumps([]))
+    monkeypatch.setattr(
+        "src.tools.research_collector.fetch_official_blog_posts",
+        lambda publication_date: json.dumps({"posts": {"openai": [], "anthropic": [], "deepmind": []}}),
+    )
+    monkeypatch.setattr(
+        "src.tools.research_collector.search_pytorch_kr_forum",
+        lambda publication_date: json.dumps({"posts": []}),
+    )
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos",
+                         lambda query, publication_date, max_results=6: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending",
+                         lambda publication_date: json.dumps({"publication_date": publication_date, "posts": []}))
+    monkeypatch.setattr("src.tools.research_collector._summarize_candidates", lambda *a, **k: [])
+
+    def fake_relevance_scorer(items):
+        return [
+            {"url": "https://example.com/good", "score": 8, "is_junk": False, "reason": "solid"},
+            {"url": "https://example.com/junk", "score": 1, "is_junk": True, "reason": "job posting"},
+        ]
+
+    result = _collect_weekly_research_core("2026-06-17", relevance_scorer=fake_relevance_scorer)
+
+    titles = [c["title"] for c in result["candidates"]]
+    assert "Good Article" in titles
+    assert "Job Posting" not in titles
+    assert result["errors"] == []
 
 
 def test_collect_weekly_research_wrapper_returns_valid_json_on_search_failure(monkeypatch, tmp_path):
@@ -737,6 +840,6 @@ def test_core_strips_prefetched_content(monkeypatch, tmp_path):
     )
     monkeypatch.setattr("src.tools.research_collector._summarize_candidates", lambda *a, **k: [])
 
-    result = _collect_weekly_research_core("2026-08-05")
+    result = _collect_weekly_research_core("2026-08-05", relevance_scorer=lambda items: [])
 
     assert all("prefetched_content" not in c for c in result["candidates"])

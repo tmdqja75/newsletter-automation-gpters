@@ -84,6 +84,7 @@ cp .env.example .env
 # .env에서 설정:
 # ANTHROPIC_API_KEY=...
 # TAVILY_API_KEY=...
+# OPENAI_API_KEY=...       # 리서치 후보 관련성 스코어링(gpt-5.4-nano)에 사용
 # LANGSMITH_TRACING=true   # 선택사항 — LangSmith 모니터링
 # LANGCHAIN_API_KEY=...    # 선택사항
 ```
