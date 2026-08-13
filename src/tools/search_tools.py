@@ -80,19 +80,9 @@ def search_ai_news(query: str, max_results: int = 10, article_date: str | None =
             topic="news",
             max_results=max_results,
             start_date=two_weeks_ago,  # Filter for content from last 2 weeks
-            include_domains=[
-                "anthropic.com",
-                "openai.com",
-                "ai.google",
-                "blog.google",
-                "huggingface.co",
-                "arxiv.org",
-                "techcrunch.com",
-                "theverge.com",
-                "venturebeat.com",
-                "wired.com",
-                "arstechnica.com",
-            ],
+            # No include_domains: testing showed the allowlist suppressed exactly
+            # the tips/how-to and commentary content that drives reader engagement
+            # (e.g. xda-developers.com, axios.com, brookings.edu were all excluded).
             exclude_domains=[
                 "openai.com",
                 "anthropic.com",
