@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from src.tools.search_tools import search_ai_news
 
 
-def test_search_ai_news_requests_news_topic_and_domain_whitelist(monkeypatch):
+def test_search_ai_news_requests_news_topic_and_no_domain_whitelist(monkeypatch):
     mock_client = MagicMock()
     mock_client.search.return_value = {"results": []}
     monkeypatch.setattr("src.tools.search_tools.TavilyClient", lambda api_key: mock_client)
@@ -16,11 +16,7 @@ def test_search_ai_news_requests_news_topic_and_domain_whitelist(monkeypatch):
 
     _, kwargs = mock_client.search.call_args
     assert kwargs["topic"] == "news"
-    assert set(kwargs["include_domains"]) == {
-        "anthropic.com", "openai.com", "ai.google", "blog.google",
-        "huggingface.co", "arxiv.org",
-        "techcrunch.com", "theverge.com", "venturebeat.com", "wired.com", "arstechnica.com",
-    }
+    assert "include_domains" not in kwargs
     # exclude_domains stays — these three are covered by official_blogs instead
     assert set(kwargs["exclude_domains"]) == {"openai.com", "anthropic.com", "deepmind.google"}
 
