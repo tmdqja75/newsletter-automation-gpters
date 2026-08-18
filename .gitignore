@@ -55,6 +55,7 @@ articles/
 artifacts/
 log-analysis/
 .claude/
+_workspace/
 
 # Git worktrees
 .worktrees/
