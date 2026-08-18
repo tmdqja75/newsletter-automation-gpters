@@ -854,6 +854,8 @@ git commit -m "feat: restructure article-writer as a nested CompiledSubAgent wit
 **Interfaces:**
 - No new production interfaces — this task closes out the remaining spec assertions (blast-radius containment of `LocalShellBackend`, orchestrator untouched) and prevents `_workspace/` run directories from being committed.
 
+**Known test-coverage gap (verified via a standalone construction spike, not a bug in this plan — just a limit of what these tests can catch):** `SkillsMiddleware` resolves `skills=[...]` paths lazily, inside a `before_agent` hook at **invoke** time, not at `create_deep_agent()` construction time. A nonexistent or misspelled `skills/humanize-korean/` path constructs identically to a valid one — no exception, just a collected `<skill_load_warnings>` block that only appears once the agent actually runs. None of this plan's tests call `.invoke()`, so none of them can catch a broken skill path — passing tests + passing construction prove the wiring is *shaped* correctly, not that the skill actually loads. The Task 6 Step 5 manual smoke test below must specifically check for this, not just confirm the run completes without crashing.
+
 - [ ] **Step 1: Add `_workspace/` to `.gitignore`**
 
 Edit `.gitignore`, in the "Project specific" section (currently `articles/**/draft_*`, `articles/`, `artifacts/`, `log-analysis/`, `.claude/`), add:
@@ -932,5 +934,5 @@ git commit -m "test: assert LocalShellBackend blast radius is scoped to article-
 ## Out of scope (do not implement as part of this plan)
 
 - Heavy path / `--strict` / `--chunk` / `reassemble_chunks.py` — explicitly excluded by the spec.
-- Any live end-to-end run of `run.py` that actually invokes the humanize pipeline against a real Anthropic API call — none of the tests in this plan make real LLM calls (all wiring/structure assertions), matching this repo's existing test conventions (`test_agents_wiring.py` uses `monkeypatch`, never calls a real model). A manual smoke test (`uv run python run.py --quick`) is recommended after this plan lands, but is a manual verification step for the user, not a plan task.
+- Any live end-to-end run of `run.py` that actually invokes the humanize pipeline against a real Anthropic API call — none of the tests in this plan make real LLM calls (all wiring/structure assertions), matching this repo's existing test conventions (`test_agents_wiring.py` uses `monkeypatch`, never calls a real model). A manual smoke test (`uv run python run.py --quick`) is recommended after this plan lands, but is a manual verification step for the user, not a plan task — and per the Task 6 test-coverage-gap note above, that smoke test must specifically check article-writer's stream/transcript for a `<skill_load_warnings>` block (skill failed to resolve) rather than only confirming the run finished without crashing, since construction-time tests can't catch a broken `skills/humanize-korean/` path.
 - `korean-ai-tell-taxonomist` and the other upstream dev-only agents — not part of the runtime pipeline.
