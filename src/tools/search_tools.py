@@ -77,16 +77,12 @@ def search_ai_news(query: str, max_results: int = 10, article_date: str | None =
         response = client.search(
             query=query,
             search_depth="advanced",
+            topic="news",
             max_results=max_results,
-            start_date= two_weeks_ago,  # Filter for content from last 2 weeks
-            # include_domains=[
-            #     "arxiv.org",
-            #     "techcrunch.com",
-            #     "theverge.com",
-            #     "venturebeat.com",
-            #     "wired.com",
-            #     "arstechnica.com",
-            # ],
+            start_date=two_weeks_ago,  # Filter for content from last 2 weeks
+            # No include_domains: testing showed the allowlist suppressed exactly
+            # the tips/how-to and commentary content that drives reader engagement
+            # (e.g. xda-developers.com, axios.com, brookings.edu were all excluded).
             exclude_domains=[
                 "openai.com",
                 "anthropic.com",
@@ -155,6 +151,60 @@ def search_hackernews(query: str, num_results: int = 10, publication_date: str |
                 "num_comments": hit.get("num_comments", 0),
                 "author": hit.get("author", ""),
                 "created_at": hit.get("created_at", ""),
+            })
+
+        return json.dumps(results, ensure_ascii=False, indent=2)
+
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+GITHUB_SEARCH_URL = "https://api.github.com/search/repositories"
+
+
+def search_github_repos(query: str, publication_date: str, max_results: int = 6) -> str:
+    """Search GitHub repositories via the public Search API for repos created recently.
+
+    Args:
+        query: GitHub search qualifiers/keywords (e.g. "topic:ai-agents")
+        publication_date: Newsletter publication date in YYYY-MM-DD format.
+            Results are restricted to repos created in the 14 days before this date.
+        max_results: Maximum number of results to return (default: 6)
+
+    Returns:
+        JSON string containing repo full_name, url, description, stars, created_at
+    """
+    try:
+        pub_date = datetime.strptime(publication_date, "%Y-%m-%d")
+    except ValueError:
+        return json.dumps({"error": "Invalid publication_date format. Use YYYY-MM-DD."})
+
+    window_start = (pub_date - timedelta(days=14)).strftime("%Y-%m-%d")
+    full_query = f"{query} created:>{window_start}"
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(
+                GITHUB_SEARCH_URL,
+                params={
+                    "q": full_query,
+                    "sort": "stars",
+                    "order": "desc",
+                    "per_page": max_results,
+                },
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        results = []
+        for item in data.get("items", []):
+            results.append({
+                "full_name": item.get("full_name", ""),
+                "url": item.get("html_url", ""),
+                "description": item.get("description") or "",
+                "stars": item.get("stargazers_count", 0),
+                "created_at": item.get("created_at", ""),
             })
 
         return json.dumps(results, ensure_ascii=False, indent=2)

@@ -10,7 +10,7 @@
 
 
 
-LangGraph deepagents로 구현된 Orchestrator가 research-agent → article-writer 2개 서브에이전트를 조율해 최신 AI 뉴스 수집부터 토픽 선정, 한국어 기사 작성·문체 교정까지 자동으로 처리합니다. 매주 수요일 사람이 직접 개입 없이 뉴스레터가 완성됩니다.
+LangGraph deepagents로 구현된 Orchestrator가 topic-researcher → article-writer 2개 서브에이전트와 Python 리서치 파이프라인(`run_weekly_research`)을 조율해 최신 AI 뉴스 수집부터 토픽 선정, 한국어 기사 작성·문체 교정까지 자동으로 처리합니다. 매주 수요일 사람이 직접 개입 없이 뉴스레터가 완성됩니다.
 
 > 뉴스레터 1편 작성에 걸리던 시간을 **1주일 → 30분~1시간**으로 단축. 현재 실제 발행 중인 시스템입니다.
 
@@ -19,7 +19,7 @@ LangGraph deepagents로 구현된 Orchestrator가 research-agent → article-wri
 ```mermaid
 graph TD
     A[run.py] --> B[Orchestrator Agent]
-    B --> C[research-agent]
+    B --> C["run_weekly_research\n(Python, not an agent)"]
     C --> D[collect_weekly_research]
     D --> D1["12-query 검색 플랜\n(8개 카테고리)"]
     D1 --> D2["정규화 → 중복제거\n→ 날짜필터 → 점수 랭킹"]
@@ -43,11 +43,11 @@ graph TD
 
 ## 핵심 기술 하이라이트
 
-1. **멀티에이전트 오케스트레이션** — Orchestrator가 research-agent(수집) → article-writer(토픽별 리서치 보강+작성+톤 교정 통합)를 조율. deepagents의 dict 기반 에이전트 정의로 역할별 교체·독립 테스트 가능한 구조
+1. **멀티에이전트 오케스트레이션** — Orchestrator가 topic-researcher(사용자 지정 토픽 리서치) / run_weekly_research(Python, 후보 수집) → article-writer(토픽별 리서치 보강+작성+톤 교정 통합)를 조율. deepagents의 dict 기반 에이전트 정의로 역할별 교체·독립 테스트 가능한 구조
 
 2. **결정론적 리서치 파이프라인** — 오픈엔드 LLM 검색 루프 대신 8개 카테고리, 12-query 고정 플랜 → 정규화 → 중복제거 → 날짜필터 → 점수 랭킹 → 선택적 fetch → 배치 LLM 요약의 7단계 파이프라인으로 재현 가능한 결과 보장
 
-3. **Human-in-the-Loop** — LangGraph `interrupt_on` 메커니즘으로 토픽 후보 제시 후 사용자 승인·수정·거부를 받아 `Command(resume=...)` 패턴으로 재개. 완전 자동화와 수동 작업 사이의 균형점
+3. **Human-in-the-Loop** — 선택 도구(`request_topic_selection`) 내부에서 LangGraph `interrupt()`를 호출해 디스크에서 읽은 후보 목록을 그대로 사용자에게 제시하고, 번호 선택을 `Command(resume=...)` 패턴으로 재개. 완전 자동화와 수동 작업 사이의 균형점
 
 4. **비용 제어** — 리서치 결과 캐싱(존재 시 재사용), 배치 LLM 요약(N번 API 콜 → 1번), `max_fetches` 캡으로 API 비용 예측 가능하게 유지
 
@@ -70,9 +70,10 @@ graph TD
 
 | 에이전트 | 역할 | 도구 |
 |----------|------|------|
-| **Orchestrator** | 전체 워크플로우 조율, 토픽 선정(HITL 시 `request_topic_selection`으로 사용자 승인), 파일 저장, 뉴스레터 병합 | `save_article`, `merge_newsletter`, `request_topic_selection`(HITL) |
-| **research-agent** | AI/LLM 뉴스 수집 파이프라인 실행, 후보 정제 및 요약 | `collect_weekly_research`, `fetch_article_content` |
-| **article-writer** | 토픽별 필요 시 추가 리서치 → 팩트 기반 초안 작성 → 오토마타 톤앤매너(해요체, 기술 용어 한/영 병기) 교정을 1회 호출로 처리 | `search_ai_news`, `fetch_article_content` |
+| **Orchestrator** | 전체 워크플로우 조율, 토픽 선정 도구 호출(`request_topic_selection` 또는 `auto_select_topics`), 파일 저장, 뉴스레터 병합 | `run_weekly_research`, `save_article`, `merge_newsletter`, 선택 도구 1개 |
+| **topic-researcher** (서브에이전트) | 사용자가 `--topics`로 지정한 토픽 하나를 리서치해 `TopicResearch` 구조화 결과 반환 | `search_ai_news`, `fetch_article_content` |
+| *(Python, 에이전트 아님)* `run_weekly_research` | AI/LLM 뉴스 수집 파이프라인 실행, 후보 정제 및 요약, 후보 목록은 파일에만 저장하고 오케스트레이터에는 한 줄 영수증만 반환 | `collect_weekly_research` |
+| **article-writer** (서브에이전트) | 토픽별 필요 시 추가 리서치 → 팩트 기반 초안 작성 → 오토마타 톤앤매너(해요체, 기술 용어 한/영 병기) 교정을 1회 호출로 처리 | `search_ai_news`, `fetch_article_content` |
 
 ## 실행 방법
 
@@ -83,6 +84,7 @@ cp .env.example .env
 # .env에서 설정:
 # ANTHROPIC_API_KEY=...
 # TAVILY_API_KEY=...
+# OPENAI_API_KEY=...       # 리서치 후보 관련성 스코어링(gpt-5.4-nano)에 사용
 # LANGSMITH_TRACING=true   # 선택사항 — LangSmith 모니터링
 # LANGCHAIN_API_KEY=...    # 선택사항
 ```

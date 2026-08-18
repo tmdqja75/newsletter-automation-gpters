@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from src.tools.research_collector import (
     RESEARCH_QUERY_PLAN,
     _build_query_plan,
@@ -11,6 +13,8 @@ from src.tools.research_collector import (
     _date_filter,
     _rank_and_truncate,
     _fetch_top_candidates,
+    _score_relevance,
+    _JUNK_SCORE_THRESHOLD,
     _summarize_candidates,
     _persist_artifacts,
     _collect_weekly_research_core,
@@ -22,13 +26,10 @@ EXPECTED_CATEGORIES = {
     "model_releases",
     "agents_automation",
     "research_papers",
-    "tools_infra",
-    "industry_business",
-    "policy_society",
-    "study_resources",
     "real_world_usecases",
     "official_blogs",
     "pytorch_kr_community",
+    "github_trending",
 }
 
 
@@ -94,10 +95,21 @@ def test_run_searches_collects_items_and_tags_category(monkeypatch):
     def fake_search_pytorch_kr_forum(publication_date):
         return json.dumps({"publication_date": publication_date, "posts": []})
 
+    def fake_search_github_repos(query, publication_date, max_results=6):
+        return json.dumps([
+            {"full_name": "example/repo", "url": "https://github.com/example/repo",
+             "description": "desc", "stars": 100, "created_at": "2026-06-10T00:00:00Z"}
+        ])
+
+    def fake_fetch_github_trending(publication_date):
+        return json.dumps({"publication_date": publication_date, "posts": []})
+
     monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", fake_search_hackernews)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", fake_search_pytorch_kr_forum)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos", fake_search_github_repos)
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", fake_fetch_github_trending)
 
     plan = _build_query_plan("2026-06-17")
     raw_results, errors = _run_searches(plan, "2026-06-17")
@@ -110,6 +122,8 @@ def test_run_searches_collects_items_and_tags_category(monkeypatch):
     blog_entries = [r for r in raw_results if r["tool"] == "blog"]
     assert len(blog_entries) == 1
     assert blog_entries[0]["items"][0]["title"] == "Blog post"
+    github_search_entries = [r for r in raw_results if r["tool"] == "github_search"]
+    assert github_search_entries and all(r["items"] for r in github_search_entries)
 
 
 def test_run_searches_captures_errors_without_raising(monkeypatch):
@@ -120,12 +134,43 @@ def test_run_searches_captures_errors_without_raising(monkeypatch):
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos", boom)
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", boom)
 
     plan = _build_query_plan("2026-06-17")
     raw_results, errors = _run_searches(plan, "2026-06-17")
 
     assert len(errors) == len(plan)
     assert all(r["items"] == [] for r in raw_results)
+
+
+def test_run_searches_injects_publication_date_into_trending_items(monkeypatch):
+    def fake_fetch_github_trending(publication_date):
+        return json.dumps({"publication_date": publication_date,
+                            "posts": [{"full_name": "a/b", "url": "https://github.com/a/b",
+                                       "description": "d", "stars_this_week": "1 stars this week"}]})
+
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", fake_fetch_github_trending)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos",
+                         lambda query, publication_date, max_results=6: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news",
+                         lambda query, max_results=10, article_date=None: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews",
+                         lambda query, num_results=10, publication_date=None: json.dumps([]))
+    monkeypatch.setattr(
+        "src.tools.research_collector.fetch_official_blog_posts",
+        lambda publication_date: json.dumps({"posts": {"openai": [], "anthropic": [], "deepmind": []}}),
+    )
+    monkeypatch.setattr(
+        "src.tools.research_collector.search_pytorch_kr_forum",
+        lambda publication_date: json.dumps({"posts": []}),
+    )
+
+    plan = _build_query_plan("2026-06-17")
+    raw_results, errors = _run_searches(plan, "2026-06-17")
+
+    trending_entry = next(r for r in raw_results if r["tool"] == "github_trending_scrape")
+    assert trending_entry["items"][0]["published_at"] == "2026-06-17"
 
 
 def test_normalize_candidates_handles_tavily_hn_blog():
@@ -155,8 +200,8 @@ def test_normalize_candidates_handles_tavily_hn_blog():
     tavily_c = next(c for c in candidates if c["title"] == "Tavily Item")
     assert tavily_c["source"] == "news.example.com"
     assert tavily_c["published_at"] is None
-    # tavily_score (0.75) - 0.5 (missing published_at) = 0.25
-    assert tavily_c["score"] == 0.25
+    # tavily_score (0.75) - 0.2 (missing published_at) = 0.55
+    assert tavily_c["score"] == 0.55
     assert tavily_c["topic_type"] == "main"
     assert tavily_c["fetched"] is False
 
@@ -174,17 +219,89 @@ def test_normalize_candidates_handles_tavily_hn_blog():
     assert blog_c["score"] == 0.0
 
 
-def test_normalize_candidates_study_resources_topic_type():
+def test_normalize_candidates_parses_tavily_published_date():
     raw_results = [
         {
-            "category": "study_resources", "tool": "tavily", "query": "...",
-            "items": [{"title": "Tutorial", "url": "https://example.com/tut",
-                       "content": "snippet", "score": 0.5}],
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [{"title": "Dated Item", "url": "https://news.example.com/dated",
+                       "content": "snippet", "score": 0.5,
+                       "published_date": "Tue, 28 Apr 2026 17:00:03 GMT"}],
         },
     ]
 
     candidates = _normalize_candidates(raw_results)
-    assert candidates[0]["topic_type"] == "study_cafe"
+
+    assert candidates[0]["published_at"] == "2026-04-28"
+    # tavily_score (0.5), no missing-date penalty since dated
+    assert candidates[0]["score"] == 0.5
+
+
+def test_normalize_candidates_tavily_bad_date_falls_back_to_none():
+    raw_results = [
+        {
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [{"title": "Garbage Date", "url": "https://news.example.com/garbage",
+                       "content": "snippet", "score": 0.5,
+                       "published_date": "not a date"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    assert candidates[0]["published_at"] is None
+    # 0.5 - 0.2 (missing/unparseable date penalty)
+    assert candidates[0]["score"] == 0.3
+
+
+@pytest.mark.parametrize("title", [
+    "10 Best AI Developer Tools in 2026 | Scalable Path",
+    "Best AI Developer Tools for 2026 | AI Software Development Tools",
+    "I tried 70+ best AI tools in 2026",
+    "Top 10 AI Tools Every Developer Must Know in 2026",
+    "Top 10 Best AI Tools for 2026 (Q3 Update)",
+    "The Definitive Guide to AI Agent Deployment for Small Business in 2026",
+    "AI 에이전트 구축: 2026년 지능형 자동화 생성을 위한 완벽 가이드",
+])
+def test_is_listicle_title_rejects_known_seo_patterns(title):
+    from src.tools.research_collector import _is_listicle_title
+    assert _is_listicle_title(title) is True
+
+
+@pytest.mark.parametrize("title", [
+    "Anthropic ships Claude Code skill for X",
+    "OpenAI announces GPT-5.6",
+    "microsoft/skill-recorder",
+    "State of AI Agent Security Report 2026",
+])
+def test_is_listicle_title_keeps_legitimate_titles(title):
+    from src.tools.research_collector import _is_listicle_title
+    assert _is_listicle_title(title) is False
+
+
+def test_normalize_candidates_drops_listicle_titles():
+    raw_results = [
+        {
+            "category": "model_releases", "tool": "tavily", "query": "...",
+            "items": [
+                {"title": "Top 10 AI Tools Every Developer Must Know", "url": "https://example.com/a",
+                 "content": "x", "score": 0.9},
+                {"title": "Anthropic ships new agent skill", "url": "https://example.com/b",
+                 "content": "x", "score": 0.5},
+            ],
+        },
+    ]
+    candidates = _normalize_candidates(raw_results)
+    titles = [c["title"] for c in candidates]
+    assert "Anthropic ships new agent skill" in titles
+    assert "Top 10 AI Tools Every Developer Must Know" not in titles
+
+
+def test_max_search_results_default_is_30():
+    import inspect
+    from src.tools.research_collector import _collect_weekly_research_core, collect_weekly_research
+
+    assert inspect.signature(_collect_weekly_research_core).parameters["max_search_results"].default == 30
+    assert inspect.signature(collect_weekly_research).parameters["max_search_results"].default == 30
 
 
 def test_normalize_candidates_skips_missing_url_or_title():
@@ -197,6 +314,75 @@ def test_normalize_candidates_skips_missing_url_or_title():
 
     candidates = _normalize_candidates(raw_results)
     assert candidates == []
+
+
+def test_normalize_candidates_routes_blog_case_studies_to_real_world_usecases():
+    raw_results = [
+        {
+            "category": "official_blogs", "tool": "blog", "query": None,
+            "items": [
+                {"source": "anthropic", "title": "Customer story: Acme ships agents",
+                 "url": "https://anthropic.com/news/acme", "date": "2026-08-01",
+                 "category": "Customer story", "description": "desc"},
+                {"source": "openai", "title": "Introducing GPT-5.7",
+                 "url": "https://openai.com/news/gpt57", "date": "2026-08-01",
+                 "category": "Announcements", "description": "desc"},
+            ],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    case_study = next(c for c in candidates if "Acme" in c["title"])
+    assert case_study["category"] == "real_world_usecases"
+    assert case_study["score"] == 0.3  # 0.0 base + 0.3 boost
+
+    announcement = next(c for c in candidates if "GPT-5.7" in c["title"])
+    assert announcement["category"] == "official_blogs"
+    assert announcement["score"] == 0.0
+
+
+def test_normalize_candidates_github_search_branch():
+    raw_results = [
+        {
+            "category": "github_trending", "tool": "github_search", "query": "topic:ai-agents",
+            "items": [{"full_name": "microsoft/skill-recorder",
+                       "url": "https://github.com/microsoft/skill-recorder",
+                       "description": "Records sessions", "stars": 1763,
+                       "created_at": "2026-07-29T00:00:00Z"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    assert len(candidates) == 1
+    c = candidates[0]
+    assert c["title"] == "microsoft/skill-recorder"
+    assert c["category"] == "github_trending"
+    assert c["published_at"] == "2026-07-29"
+    assert c["source"] == "github.com"
+    assert c["score"] == 0.3  # 0.0 base + 0.3 novelty boost
+
+
+def test_normalize_candidates_github_trending_scrape_branch():
+    raw_results = [
+        {
+            "category": "github_trending", "tool": "github_trending_scrape", "query": None,
+            "items": [{"full_name": "block/buzz", "url": "https://github.com/block/buzz",
+                       "description": "A hive mind communication platform",
+                       "stars_this_week": "7,372 stars this week",
+                       "published_at": "2026-08-05"}],
+        },
+    ]
+
+    candidates = _normalize_candidates(raw_results)
+
+    assert len(candidates) == 1
+    c = candidates[0]
+    assert c["title"] == "block/buzz"
+    assert c["published_at"] == "2026-08-05"
+    assert "7,372 stars this week" in c["summary"]
+    assert c["score"] == 0.3
 
 
 def test_dedupe_candidates_by_url_and_title():
@@ -243,14 +429,61 @@ def test_date_filter_drops_out_of_window_and_keeps_undated():
 
 def test_rank_and_truncate_sorts_by_score_and_limits():
     candidates = [
-        {"title": "Low", "score": 0.1},
-        {"title": "High", "score": 0.9},
-        {"title": "Mid", "score": 0.5},
+        {"title": "Low", "score": 0.1, "_query_key": "tool:query"},
+        {"title": "High", "score": 0.9, "_query_key": "tool:query"},
+        {"title": "Mid", "score": 0.5, "_query_key": "tool:query"},
     ]
 
     result = _rank_and_truncate(candidates, max_search_results=2)
 
     assert [c["title"] for c in result] == ["High", "Mid"]
+
+
+def test_rank_and_truncate_interleaves_categories_so_none_dominates():
+    """One boosted category with many candidates must not crowd out a
+    flat-scored category with none — regression for the real-run bug where
+    github_trending (flat 0.3 boost) filled 21/30 slots while
+    pytorch_kr_community/official_blogs (flat 0.0, no boost) got zero."""
+    candidates = (
+        [{"title": f"gh{i}", "category": "github_trending", "score": 0.3, "_query_key": "tool:query"} for i in range(20)]
+        + [{"title": f"pt{i}", "category": "pytorch_kr_community", "score": 0.0, "_query_key": "tool:query"} for i in range(20)]
+        + [{"title": "top", "category": "model_releases", "score": 0.9, "_query_key": "tool:query"}]
+    )
+
+    result = _rank_and_truncate(candidates, max_search_results=9)
+    categories = [c["category"] for c in result]
+
+    assert categories.count("github_trending") <= 4
+    assert categories.count("pytorch_kr_community") >= 3
+    assert "model_releases" in categories
+
+
+def test_rank_and_truncate_preserves_score_order_within_category():
+    candidates = [
+        {"title": "gh-low", "category": "github_trending", "score": 0.1, "_query_key": "tool:query"},
+        {"title": "gh-high", "category": "github_trending", "score": 0.9, "_query_key": "tool:query"},
+    ]
+
+    result = _rank_and_truncate(candidates, max_search_results=2)
+
+    assert [c["title"] for c in result] == ["gh-high", "gh-low"]
+
+
+def test_rank_and_truncate_interleaves_queries_within_category():
+    """Regression for the bug where the first-declared query in a category
+    always won every tie: with 2 query groups of 5 tied-score items each,
+    a truncation that only fits ~6 must include items from both groups,
+    not just the first-declared one."""
+    candidates = (
+        [{"title": f"a{i}", "category": "agents_automation", "score": 0.0, "_query_key": "hn:AI agent"} for i in range(5)]
+        + [{"title": f"b{i}", "category": "agents_automation", "score": 0.0, "_query_key": "hn:Claude Code"} for i in range(5)]
+    )
+
+    result = _rank_and_truncate(candidates, max_search_results=6)
+    titles = {c["title"] for c in result}
+
+    assert any(t.startswith("a") for t in titles)
+    assert any(t.startswith("b") for t in titles)
 
 
 def test_fetch_top_candidates_limits_and_truncates(monkeypatch):
@@ -297,6 +530,61 @@ def test_fetch_top_candidates_handles_failure(monkeypatch):
 
     assert fetched_content == {}
     assert candidates[0]["fetched"] is False
+
+
+def _relevance_candidate(title, url, score=1.0):
+    return {"title": title, "url": url, "source": "example.com", "category": "model_releases",
+            "summary": "snippet", "score": score}
+
+
+def test_score_relevance_sets_score_and_junk_fields():
+    candidates = [
+        _relevance_candidate("Good", "https://example.com/good"),
+        _relevance_candidate("Junk", "https://example.com/junk"),
+    ]
+
+    def fake_scorer(items):
+        return [
+            {"url": "https://example.com/good", "score": 8, "is_junk": False, "reason": "great"},
+            {"url": "https://example.com/junk", "score": 2, "is_junk": True, "reason": "job posting"},
+        ]
+
+    errors = _score_relevance(candidates, fake_scorer)
+
+    assert errors == []
+    good = next(c for c in candidates if c["title"] == "Good")
+    junk = next(c for c in candidates if c["title"] == "Junk")
+    assert good["relevance_score"] == 8
+    assert good["is_junk"] is False
+    assert junk["relevance_score"] == 2
+    assert junk["is_junk"] is True
+    assert junk["relevance_score"] <= _JUNK_SCORE_THRESHOLD
+
+
+def test_score_relevance_scorer_raises_falls_back_without_dropping():
+    candidates = [_relevance_candidate("A", "https://example.com/a")]
+
+    def broken_scorer(items):
+        raise RuntimeError("api down")
+
+    errors = _score_relevance(candidates, broken_scorer)
+
+    assert any("relevance_scorer" in e for e in errors)
+    assert candidates[0]["relevance_score"] is None
+    assert candidates[0]["is_junk"] is False
+
+
+def test_score_relevance_malformed_response_falls_back_without_dropping():
+    candidates = [_relevance_candidate("A", "https://example.com/a")]
+
+    def malformed_scorer(items):
+        return [{"score": 8}]  # missing "url"
+
+    errors = _score_relevance(candidates, malformed_scorer)
+
+    assert any("relevance_scorer" in e for e in errors)
+    assert candidates[0]["relevance_score"] is None
+    assert candidates[0]["is_junk"] is False
 
 
 def test_summarize_candidates_merges_enrichment_by_url():
@@ -422,8 +710,14 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", fake_fetch_official_blog_posts)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", fake_search_pytorch_kr_forum)
     monkeypatch.setattr("src.tools.research_collector.fetch_article_content", fake_fetch_article_content)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos",
+                         lambda query, publication_date, max_results=6: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending",
+                         lambda publication_date: json.dumps({"publication_date": publication_date, "posts": []}))
 
-    result = _collect_weekly_research_core("2026-06-17", summarizer=fake_summarizer)
+    result = _collect_weekly_research_core(
+        "2026-06-17", summarizer=fake_summarizer, relevance_scorer=lambda items: []
+    )
 
     assert result["publication_date"] == "2026-06-17"
     assert result["total_found"] > 0
@@ -433,6 +727,50 @@ def test_collect_weekly_research_core_returns_envelope(monkeypatch, tmp_path):
     artifacts_dir = tmp_path / "artifacts" / "research" / "2026-06-17"
     assert (artifacts_dir / "raw_search_results.json").exists()
     assert (artifacts_dir / "candidates.json").exists()
+
+
+def test_collect_weekly_research_core_drops_junk_via_relevance_scorer(monkeypatch, tmp_path):
+    """End-to-end wiring: a relevance_scorer that flags an item as junk
+    must remove it from the pipeline's output before ranking/truncation."""
+    monkeypatch.chdir(tmp_path)
+
+    def fake_search_ai_news(query, max_results=10, article_date=None):
+        return json.dumps([
+            {"title": "Good Article", "url": "https://example.com/good",
+             "content": "snippet", "score": 0.8},
+            {"title": "Job Posting", "url": "https://example.com/junk",
+             "content": "snippet", "score": 0.8},
+        ])
+
+    monkeypatch.setattr("src.tools.research_collector.search_ai_news", fake_search_ai_news)
+    monkeypatch.setattr("src.tools.research_collector.search_hackernews",
+                         lambda query, num_results=10, publication_date=None: json.dumps([]))
+    monkeypatch.setattr(
+        "src.tools.research_collector.fetch_official_blog_posts",
+        lambda publication_date: json.dumps({"posts": {"openai": [], "anthropic": [], "deepmind": []}}),
+    )
+    monkeypatch.setattr(
+        "src.tools.research_collector.search_pytorch_kr_forum",
+        lambda publication_date: json.dumps({"posts": []}),
+    )
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos",
+                         lambda query, publication_date, max_results=6: json.dumps([]))
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending",
+                         lambda publication_date: json.dumps({"publication_date": publication_date, "posts": []}))
+    monkeypatch.setattr("src.tools.research_collector._summarize_candidates", lambda *a, **k: [])
+
+    def fake_relevance_scorer(items):
+        return [
+            {"url": "https://example.com/good", "score": 8, "is_junk": False, "reason": "solid"},
+            {"url": "https://example.com/junk", "score": 1, "is_junk": True, "reason": "job posting"},
+        ]
+
+    result = _collect_weekly_research_core("2026-06-17", relevance_scorer=fake_relevance_scorer)
+
+    titles = [c["title"] for c in result["candidates"]]
+    assert "Good Article" in titles
+    assert "Job Posting" not in titles
+    assert result["errors"] == []
 
 
 def test_collect_weekly_research_wrapper_returns_valid_json_on_search_failure(monkeypatch, tmp_path):
@@ -445,6 +783,8 @@ def test_collect_weekly_research_wrapper_returns_valid_json_on_search_failure(mo
     monkeypatch.setattr("src.tools.research_collector.search_hackernews", boom)
     monkeypatch.setattr("src.tools.research_collector.fetch_official_blog_posts", boom)
     monkeypatch.setattr("src.tools.research_collector.search_pytorch_kr_forum", boom)
+    monkeypatch.setattr("src.tools.research_collector.search_github_repos", boom)
+    monkeypatch.setattr("src.tools.research_collector.fetch_github_trending", boom)
 
     output = collect_weekly_research("2026-06-17")
     parsed = json.loads(output)
@@ -469,8 +809,37 @@ def test_collect_weekly_research_wrapper_total_failure_returns_valid_json(monkey
     assert parsed["errors"]
 
 
-def test_research_subagent_tools_wiring():
-    from src.agents.research import research_subagent
-    from src.tools.content_tools import fetch_article_content
+def test_collect_weekly_research_is_not_an_agent_tool():
+    """Research is Python-driven now; no subagent should hold the collector."""
+    from src.agents import article_writer_agent, topic_researcher_agent
 
-    assert research_subagent["tools"] == [collect_weekly_research, fetch_article_content]
+    for agent in (article_writer_agent, topic_researcher_agent):
+        assert collect_weekly_research not in agent["tools"]
+
+
+def test_core_strips_prefetched_content(monkeypatch, tmp_path):
+    """prefetched_content duplicates summary and must not reach the model or disk."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "src.tools.research_collector._run_searches",
+        lambda plan, date: (
+            [{
+                "category": "pytorch_kr_community",
+                "tool": "pytorch_kr",
+                "query": None,
+                "items": [{
+                    "forum_url": "https://discuss.pytorch.kr/t/1",
+                    "title": "포럼 글",
+                    "published_at": "2026-08-01",
+                    "content": "본문" * 100,
+                    "original_url": "https://origin.example.com/1",
+                }],
+            }],
+            [],
+        ),
+    )
+    monkeypatch.setattr("src.tools.research_collector._summarize_candidates", lambda *a, **k: [])
+
+    result = _collect_weekly_research_core("2026-08-05", relevance_scorer=lambda items: [])
+
+    assert all("prefetched_content" not in c for c in result["candidates"])

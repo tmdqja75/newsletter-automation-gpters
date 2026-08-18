@@ -13,6 +13,7 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "headroom-ai[langchain]>=0.22.2",
     "docling>=2.103.0",
+    "openai>=2.37.0",
 ]
 
 [project.optional-dependencies]

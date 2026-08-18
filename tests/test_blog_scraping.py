@@ -288,6 +288,88 @@ class TestFetchAnthropicPosts:
 
 
 # ---------------------------------------------------------------------------
+# Unit tests: GitHub trending scrape
+# ---------------------------------------------------------------------------
+
+SAMPLE_TRENDING_HTML = """\
+<html><body>
+<article class="Box-row">
+  <h2><a href="/microsoft/AI-For-Beginners">microsoft / AI-For-Beginners</a></h2>
+  <p>12 Weeks, 24 Lessons, AI for All!</p>
+  <span class="d-inline-block float-sm-right">7,554 stars this week</span>
+</article>
+<article class="Box-row">
+  <h2><a href="/some-org/unrelated-project">some-org / unrelated-project</a></h2>
+  <p>A CLI for managing dotfiles</p>
+  <span class="d-inline-block float-sm-right">500 stars this week</span>
+</article>
+<article class="Box-row">
+  <h2><a href="/block/buzz">block / buzz</a></h2>
+  <p>A hive mind communication platform for agents</p>
+  <span class="d-inline-block float-sm-right">7,372 stars this week</span>
+</article>
+</body></html>
+"""
+
+
+class TestFetchGithubTrendingPosts:
+    def test_filters_by_ai_keyword(self):
+        from src.tools.content_tools import _fetch_github_trending_posts
+
+        client = _make_mock_client(SAMPLE_TRENDING_HTML)
+        posts = _fetch_github_trending_posts(client)
+
+        names = [p["full_name"] for p in posts]
+        assert "microsoft/AI-For-Beginners" in names
+        assert "block/buzz" in names
+        assert "some-org/unrelated-project" not in names
+
+    def test_post_fields(self):
+        from src.tools.content_tools import _fetch_github_trending_posts
+
+        client = _make_mock_client(SAMPLE_TRENDING_HTML)
+        posts = _fetch_github_trending_posts(client)
+
+        post = next(p for p in posts if p["full_name"] == "microsoft/AI-For-Beginners")
+        assert post["url"] == "https://github.com/microsoft/AI-For-Beginners"
+        assert post["description"] == "12 Weeks, 24 Lessons, AI for All!"
+        assert post["stars_this_week"] == "7,554 stars this week"
+
+    def test_no_matching_articles(self):
+        from src.tools.content_tools import _fetch_github_trending_posts
+
+        client = _make_mock_client("<html><body>no repos here</body></html>")
+        assert _fetch_github_trending_posts(client) == []
+
+
+class TestFetchGithubTrending:
+    def test_output_structure(self, monkeypatch):
+        from src.tools.content_tools import fetch_github_trending
+
+        monkeypatch.setattr(
+            "src.tools.content_tools._fetch_github_trending_posts",
+            lambda client: [{"full_name": "a/b", "url": "https://github.com/a/b",
+                              "description": "d", "stars_this_week": "1 stars this week"}],
+        )
+        result = json.loads(fetch_github_trending("2026-08-05"))
+        assert result["publication_date"] == "2026-08-05"
+        assert len(result["posts"]) == 1
+        assert "errors" not in result
+
+    def test_errors_captured_not_raised(self, monkeypatch):
+        from src.tools.content_tools import fetch_github_trending
+
+        def fail(client):
+            raise ConnectionError("network down")
+
+        monkeypatch.setattr("src.tools.content_tools._fetch_github_trending_posts", fail)
+
+        result = json.loads(fetch_github_trending("2026-08-05"))
+        assert result["posts"] == []
+        assert "network down" in result["errors"][0]
+
+
+# ---------------------------------------------------------------------------
 # Unit tests: fetch_official_blog_posts output structure
 # ---------------------------------------------------------------------------
 

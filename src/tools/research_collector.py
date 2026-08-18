@@ -1,19 +1,22 @@
 """Compact deterministic research collector for newsletter generation.
 
-Replaces the open-ended research-agent search/fetch loop with a single
-Python-controlled pipeline: search a fixed set of categories, normalize,
-deduplicate, date-filter, rank, fetch top candidates, batch-summarize via a
-cheap model, persist artifacts, and return a compact candidate list.
+A single Python-controlled pipeline, not an open-ended model search/fetch
+loop: search a fixed set of categories, normalize, deduplicate, date-filter,
+rank, fetch top candidates, batch-summarize via a cheap model, persist
+artifacts, and return a compact candidate list.
 """
 
 import json
 import re
 from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .search_tools import search_ai_news, search_hackernews, search_pytorch_kr_forum
-from .content_tools import fetch_article_content, fetch_official_blog_posts
+from .search_tools import search_ai_news, search_hackernews, search_pytorch_kr_forum, search_github_repos
+from .content_tools import fetch_article_content, fetch_official_blog_posts, fetch_github_trending
+from ..config import ARTICLES_DIR
+from .research_report import render_research_results
 
 
 _MONTH_NAMES_EN = [
@@ -21,31 +24,33 @@ _MONTH_NAMES_EN = [
     "July", "August", "September", "October", "November", "December",
 ]
 
-# Maps research categories to the topic_type assigned during normalization.
-# Categories not listed here default to "main". The batch summarizer may
-# override topic_type per candidate based on actual content.
-CATEGORY_TOPIC_TYPE: dict[str, str] = {
-    "study_resources": "study_cafe",
-}
 DEFAULT_TOPIC_TYPE = "main"
 
-# Query plan derived from the 8 categories in RESEARCH_AGENT_PROMPT, plus 2
-# source-routing categories: "official_blogs" and PyTorch-KR (10 total).
+# Query-plan entries across 5 categories that carry a real search query
+# (model_releases, agents_automation, research_papers, real_world_usecases,
+# github_trending), plus 2 source-routing categories with dedicated
+# fetchers and no query (official_blogs, pytorch_kr_community).
 # {year}/{month}/{month_en} placeholders are filled by _build_query_plan() from publication_date.
 RESEARCH_QUERY_PLAN: list[dict] = [
     {"category": "model_releases", "tool": "tavily", "query": "{year}년 {month}월 AI 모델 출시"},
     {"category": "model_releases", "tool": "tavily", "query": "{month_en} {year} new LLM model release"},
     {"category": "agents_automation", "tool": "hn", "query": "AI agent"},
-    {"category": "agents_automation", "tool": "tavily", "query": "{year}년 {month}월 AI 에이전트 자동화"},
+    {"category": "agents_automation", "tool": "hn", "query": "Claude Code"},
+    {"category": "agents_automation", "tool": "hn", "query": "coding agent"},
+    {"category": "agents_automation", "tool": "tavily", "query": "AI coding agent harness comparison"},
+    {"category": "agents_automation", "tool": "tavily", "query": "AI agent framework launch {month_en} {year}"},
+    {"category": "agents_automation", "tool": "tavily", "query": "AI agent startup funding {month_en} {year}"},
     {"category": "research_papers", "tool": "tavily", "query": "arXiv AI agent {month_en} {year}"},
-    {"category": "tools_infra", "tool": "tavily", "query": "{month_en} {year} AI developer tools"},
-    {"category": "industry_business", "tool": "tavily", "query": "{year}년 {month}월 AI 스타트업 산업 동향"},
-    {"category": "policy_society", "tool": "tavily", "query": "{month_en} {year} AI policy regulation"},
-    {"category": "study_resources", "tool": "tavily", "query": "{month_en} {year} AI agent tutorial course"},
+    {"category": "research_papers", "tool": "tavily", "query": "multi-agent orchestration production lessons learned"},
     {"category": "real_world_usecases", "tool": "hn", "query": "Show HN AI agent"},
-    {"category": "real_world_usecases", "tool": "tavily", "query": '"AI agent" deployed production results {year}'},
+    {"category": "real_world_usecases", "tool": "tavily", "query": "how teams integrate AI agents into workflow"},
     {"category": "official_blogs", "tool": "blog", "query": None},
     {"category": "pytorch_kr_community", "tool": "pytorch_kr", "query": None},
+    {"category": "github_trending", "tool": "github_search", "query": "topic:ai-agents"},
+    {"category": "github_trending", "tool": "github_search", "query": "agent AI in:name,description"},
+    {"category": "github_trending", "tool": "github_search", "query": "token compression OR context compression LLM"},
+    {"category": "github_trending", "tool": "github_search", "query": "agent harness"},
+    {"category": "github_trending", "tool": "github_trending_scrape", "query": None},
 ]
 
 
@@ -111,6 +116,19 @@ def _run_searches(query_plan: list[dict], publication_date: str) -> tuple[list[d
                 forum_posts = forum_result.get("posts", [])
                 if isinstance(forum_posts, list):
                     items = forum_posts
+            elif tool == "github_search":
+                parsed = json.loads(search_github_repos(query, publication_date, max_results=6))
+                if isinstance(parsed, dict) and "error" in parsed:
+                    errors.append(f"{category}/{tool}: {parsed['error']}")
+                elif isinstance(parsed, list):
+                    items = parsed
+            elif tool == "github_trending_scrape":
+                trending_result = json.loads(fetch_github_trending(publication_date))
+                for trending_error in trending_result.get("errors", []):
+                    errors.append(f"{category}/{tool}: {trending_error}")
+                items = trending_result.get("posts", [])
+                for trending_item in items:
+                    trending_item["published_at"] = publication_date
         except Exception as exc:
             errors.append(f"{category}/{tool}: {exc}")
             items = []
@@ -128,6 +146,43 @@ def _parse_hn_date(created_at: str) -> str | None:
         return None
 
 
+def _parse_tavily_date(raw: str | None) -> str | None:
+    """Parse Tavily's published_date (RFC 2822, e.g. 'Tue, 28 Apr 2026 17:00:03 GMT')."""
+    if not raw:
+        return None
+    try:
+        return parsedate_to_datetime(raw).strftime("%Y-%m-%d")
+    except (TypeError, ValueError):
+        return None
+
+
+_LISTICLE_TITLE_PATTERNS = [
+    re.compile(r"\btop\s*\d+\b", re.IGNORECASE),
+    re.compile(r"\bbest\b.*\b(tools?|ai)\b", re.IGNORECASE),
+    re.compile(r"\d+\+?\s*(best|top)\b", re.IGNORECASE),
+    re.compile(r"\bguide to\b", re.IGNORECASE),
+    re.compile(r"\b(definitive|ultimate) guide\b", re.IGNORECASE),
+    re.compile(r"완벽\s*가이드"),
+    re.compile(r"가이드$"),
+]
+
+
+def _is_listicle_title(title: str) -> bool:
+    """Reject SEO roundup titles ("Top 10...", "Best AI Tools...", "...완벽 가이드")."""
+    return any(pattern.search(title) for pattern in _LISTICLE_TITLE_PATTERNS)
+
+
+_NOVELTY_BOOST_CATEGORIES = {"real_world_usecases", "github_trending"}
+
+
+_CASE_STUDY_KEYWORDS = ("customer", "story", "case stud")
+
+
+def _is_case_study_tag(tag: str) -> bool:
+    lowered = tag.lower()
+    return any(keyword in lowered for keyword in _CASE_STUDY_KEYWORDS)
+
+
 def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     """Convert raw search results into preliminary ResearchCandidate dicts.
 
@@ -142,15 +197,17 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
     for result in raw_results:
         category = result["category"]
         tool = result["tool"]
-        topic_type = CATEGORY_TOPIC_TYPE.get(category, DEFAULT_TOPIC_TYPE)
+        query_key = f"{tool}:{result['query']}"
+        topic_type = DEFAULT_TOPIC_TYPE
 
         for item in result["items"]:
             original_url = None
             prefetched_content = None
+            item_category = category
             if tool == "tavily":
                 url = item.get("url", "")
                 title = item.get("title", "")
-                published_at = None
+                published_at = _parse_tavily_date(item.get("published_date"))
                 score = float(item.get("score", 0) or 0)
                 summary = item.get("content", "")
                 source = urlparse(url).netloc
@@ -170,6 +227,8 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 score = 0.0
                 summary = item.get("description", "")
                 source = item.get("source") or urlparse(url).netloc
+                if _is_case_study_tag(item.get("category", "")):
+                    item_category = "real_world_usecases"
             elif tool == "pytorch_kr":
                 url = item.get("forum_url", "")
                 title = item.get("title", "")
@@ -179,16 +238,35 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 source = "discuss.pytorch.kr"
                 original_url = item.get("original_url") or url
                 prefetched_content = summary
+            elif tool == "github_search":
+                url = item.get("url", "")
+                title = item.get("full_name", "")
+                created_at = item.get("created_at", "")
+                published_at = created_at[:10] if created_at else None
+                score = 0.0
+                summary = item.get("description", "")
+                source = "github.com"
+            elif tool == "github_trending_scrape":
+                url = item.get("url", "")
+                title = item.get("full_name", "")
+                published_at = item.get("published_at")  # ponytail: approximation — trending page has no per-repo date, this is the run's publication_date
+                score = 0.0
+                description = item.get("description", "")
+                stars_note = item.get("stars_this_week", "")
+                summary = f"{description} ({stars_note})" if stars_note else description
+                source = "github.com"
             else:
                 continue
 
             if not url or not title:
                 continue
+            if _is_listicle_title(title):
+                continue
 
-            if category == "real_world_usecases":
+            if item_category in _NOVELTY_BOOST_CATEGORIES:
                 score += 0.3
             if not published_at:
-                score -= 0.5
+                score -= 0.2
 
             candidate = {
                 "title": title,
@@ -199,9 +277,10 @@ def _normalize_candidates(raw_results: list[dict]) -> list[dict]:
                 "key_facts": [],
                 "why_it_matters": "",
                 "topic_type": topic_type,
-                "category": category,
+                "category": item_category,
                 "score": round(score, 3),
                 "fetched": False,
+                "_query_key": query_key,
             }
             if original_url is not None:
                 candidate["original_url"] = original_url
@@ -275,10 +354,48 @@ def _date_filter(candidates: list[dict], publication_date: str) -> list[dict]:
     return filtered
 
 
+def _interleave(groups: list[list[dict]]) -> list[dict]:
+    """Round-robin merge groups, one item from each per pass (each group
+    already sorted by priority), so no single group — category or query —
+    can crowd out the others just by being larger or declared first.
+    """
+    result: list[dict] = []
+    depth = 0
+    while any(depth < len(g) for g in groups):
+        for g in groups:
+            if depth < len(g):
+                result.append(g[depth])
+        depth += 1
+    return result
+
+
 def _rank_and_truncate(candidates: list[dict], max_search_results: int) -> list[dict]:
-    """Sort candidates by score (descending) and truncate to max_search_results."""
-    ranked = sorted(candidates, key=lambda c: c["score"], reverse=True)
-    return ranked[:max_search_results]
+    """Interleave fairly at two levels: queries within a category, then
+    categories within the run. Prevents both a high-volume query and a
+    high-volume category from crowding out quieter ones. Reduces to a plain
+    score sort when every candidate shares one category and one query.
+    """
+    by_category: dict[object, dict[object, list[dict]]] = {}
+    cat_order: list[object] = []
+    for c in candidates:
+        cat = c.get("category")
+        query_key = c.get("_query_key")
+        if cat not in by_category:
+            by_category[cat] = {}
+            cat_order.append(cat)
+        by_category[cat].setdefault(query_key, []).append(c)
+
+    category_lists: list[list[dict]] = []
+    for cat in cat_order:
+        query_groups = list(by_category[cat].values())
+        for group in query_groups:
+            group.sort(
+                key=lambda c: c["relevance_score"] if c.get("relevance_score") is not None else c["score"],
+                reverse=True,
+            )
+        category_lists.append(_interleave(query_groups))
+
+    return _interleave(category_lists)[:max_search_results]
 
 
 def _fetch_top_candidates(candidates: list[dict], max_fetches: int, max_chars_per_source: int) -> dict[str, str]:
@@ -349,6 +466,123 @@ def _default_summarizer(items: list[dict]) -> list[dict]:
         return json.loads(text)
     except Exception:
         return []
+
+
+RELEVANCE_RUBRIC = """You score AI-agent-news candidates for a Korean newsletter ("Automata") read by AI agent enthusiasts and builders.
+
+Score each candidate 0-10 on how likely it is to make a genuinely engaging newsletter item, plus whether it's junk.
+
+HIGH value (7-10) — the newsletter's proven winning themes:
+- Practical Claude Code / coding-agent tips, workflow hacks, token-saving techniques
+- Agent harness or framework comparisons (e.g. two competing open-source agent projects)
+- Offbeat or whimsical real-world agent applications with genuine substance (not just a press release)
+- Industry drama or controversy involving an AI platform and its developer ecosystem
+- Coding/agent benchmark head-to-head comparisons
+- Open-source tools solving one concrete, specific developer pain point (not generic model releases)
+
+MEDIUM value (4-6):
+- Generic new model release announcements
+- Official company blog posts
+- Research papers with practical deployment relevance
+- General AI industry news
+
+LOW value / JUNK (0-3) — set is_junk=true for these:
+- Job postings / recruiting pages
+- Bare homepage stubs or link-redirect wrapper pages with no real article content
+- Generic benchmark table dumps with no narrative
+- Marketing/conference promo pages
+- Near-duplicate of a bigger story already covered elsewhere in this same list
+
+Return a JSON object of the form {"results": [...]}, where "results" is an array with one object per input item, in the SAME ORDER as the input, each with exactly these keys:
+- "url": string, copied exactly from input
+- "score": integer 0-10
+- "is_junk": boolean
+- "reason": string, one short phrase (<=15 words)
+
+Return ONLY the JSON object. No other text.
+"""
+
+_JUNK_SCORE_THRESHOLD = 3  # drop candidates scored <= this, matching the rubric's JUNK band (0-3)
+
+
+def _default_relevance_scorer(items: list[dict]) -> list[dict]:
+    """Score candidates for newsletter relevance in a single batch LLM call.
+
+    Args:
+        items: list of {"url", "title", "source", "category", "snippet"} dicts.
+
+    Returns:
+        List of {"url", "score", "is_junk", "reason"} dicts. Returns [] on
+        any error (caller keeps existing heuristic scores unchanged).
+    """
+    from openai import OpenAI
+    from .. import config
+
+    try:
+        client = OpenAI(api_key=config.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model=config.RESEARCH_RELEVANCE_MODEL,
+            messages=[
+                {"role": "system", "content": RELEVANCE_RUBRIC},
+                {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
+            ],
+            response_format={"type": "json_object"},
+        )
+        parsed = json.loads(response.choices[0].message.content)
+        return parsed["results"]
+    except Exception:
+        return []
+
+
+def _score_relevance(candidates: list[dict], scorer) -> list[str]:
+    """Score every candidate's newsletter relevance in place via `scorer`,
+    then drop candidates scored at or below `_JUNK_SCORE_THRESHOLD`.
+
+    Uses the model's numeric score against a fixed threshold to decide what
+    counts as junk, NOT the model's own is_junk boolean — testing showed the
+    boolean cutoff disagreed with the score-based judgment more often than
+    the underlying reasoning actually differed (boundary noise, not a real
+    quality signal). is_junk is still stored on the candidate for visibility.
+
+    Returns a list of error messages (empty on full success). Never raises;
+    on any failure, candidates keep score=None and nothing is dropped, so
+    the pipeline falls back to the existing heuristic-score ranking.
+    """
+    if not candidates:
+        return []
+
+    items = [
+        {
+            "url": c["url"],
+            "title": c["title"],
+            "source": c["source"],
+            "category": c["category"],
+            "snippet": (c.get("summary") or "")[:300],
+        }
+        for c in candidates
+    ]
+
+    errors: list[str] = []
+    try:
+        results = scorer(items)
+    except Exception as exc:
+        results = []
+        errors.append(f"relevance_scorer: {exc}")
+
+    by_url = {r["url"]: r for r in results if isinstance(r, dict) and "url" in r}
+    if not by_url:
+        errors.append("relevance_scorer: no valid scores returned, skipping relevance filter")
+        for c in candidates:
+            c["relevance_score"] = None
+            c["is_junk"] = False
+        return errors
+
+    for c in candidates:
+        r = by_url.get(c["url"])
+        c["relevance_score"] = r.get("score") if r else None
+        c["is_junk"] = bool(r.get("is_junk")) if r else False
+
+    return errors
 
 
 def _summarize_candidates(candidates: list[dict], fetched_content: dict[str, str], summarizer) -> list[str]:
@@ -432,10 +666,11 @@ def _persist_artifacts(publication_date: str, raw_results: list[dict], candidate
 
 def _collect_weekly_research_core(
     publication_date: str,
-    max_search_results: int = 20,
+    max_search_results: int = 30,
     max_fetches: int = 8,
     max_chars_per_source: int = 1500,
     summarizer=None,
+    relevance_scorer=None,
 ) -> dict:
     """Run the full deterministic research collection pipeline.
 
@@ -456,10 +691,27 @@ def _collect_weekly_research_core(
 
     candidates = _dedupe_candidates(candidates)
     candidates = _date_filter(candidates, publication_date)
+
+    # Score relevance on the full deduped/date-filtered pool, before
+    # truncation, so the LLM judgment actually drives what survives.
+    if relevance_scorer is None:
+        relevance_scorer = _default_relevance_scorer
+    errors.extend(_score_relevance(candidates, relevance_scorer))
+    candidates = [
+        c for c in candidates
+        if not (c.get("relevance_score") is not None and c["relevance_score"] <= _JUNK_SCORE_THRESHOLD)
+    ]
+
     candidates = _rank_and_truncate(candidates, max_search_results)
 
     fetched_content = _fetch_top_candidates(candidates, max_fetches, max_chars_per_source)
     total_fetched = len(fetched_content)
+
+    # prefetched_content duplicates summary for PyTorch-KR candidates; drop it
+    # before persisting so the forum text does not ship twice.
+    for candidate in candidates:
+        candidate.pop("prefetched_content", None)
+        candidate.pop("_query_key", None)
 
     errors.extend(_summarize_candidates(candidates, fetched_content, summarizer))
     errors.extend(_persist_artifacts(publication_date, raw_results, candidates))
@@ -475,7 +727,7 @@ def _collect_weekly_research_core(
 
 def collect_weekly_research(
     publication_date: str,
-    max_search_results: int = 20,
+    max_search_results: int = 30,
     max_fetches: int = 8,
     max_chars_per_source: int = 1500,
 ) -> str:
@@ -521,3 +773,39 @@ def collect_weekly_research(
         result.pop("errors", None)
 
     return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+def load_candidates(publication_date: str) -> list[dict]:
+    """Read cached candidates for a date. Returns [] if absent or unreadable."""
+    path = Path("artifacts") / "research" / publication_date / "candidates.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def run_weekly_research(publication_date: str) -> str:
+    """이번 주 AI/LLM 뉴스 후보를 수집해 research_results.md 파일로 저장합니다.
+
+    후보 목록 자체는 반환하지 않습니다. 사용자가 파일과 토픽 선택 화면에서 직접 확인합니다.
+    이전에 같은 날짜로 수집한 결과가 있으면 재사용합니다.
+
+    Args:
+        publication_date: 뉴스레터 발행일 (YYYY-MM-DD 형식)
+
+    Returns:
+        수집 결과 한 줄 요약 (후보 개수와 저장 경로)
+    """
+    cached = load_candidates(publication_date)
+    if cached:
+        result = {"publication_date": publication_date, "candidates": cached}
+    else:
+        result = json.loads(collect_weekly_research(publication_date))
+
+    path = Path(ARTICLES_DIR) / publication_date / "research_results.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_research_results(result), encoding="utf-8")
+
+    errors = result.get("errors") or []
+    note = f" (오류 {len(errors)}건)" if errors else ""
+    return f"후보 {len(result.get('candidates', []))}개 수집 완료{note}. {path}"

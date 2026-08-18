@@ -38,6 +38,12 @@ uv run python run.py --quick
 
 # Enable human-in-the-loop for topic approval
 uv run python run.py --hitl
+
+# Research X and Y, pick 2 more from candidates interactively
+uv run python run.py --topics "X, Y" --count 4 --hitl
+
+# Ignore cached research candidates and re-collect
+uv run python run.py --refresh
 ```
 
 ### Environment Setup
@@ -62,16 +68,17 @@ Built with `deepagents` (LangGraph wrapper), consisting of:
    - Uses `create_deep_agent()` with system prompt from `config.py`
    - Manages article saving and newsletter merging
 
-2. **Research Subagent** (`src/agents/research.py`)
-   - Searches AI/LLM news via Tavily API
-   - Monitors HackerNews for trending discussions
-   - Fetches article content for analysis
-   - Tools: `search_ai_news`, `search_hackernews`, `fetch_article_content`
+2. **Topic Researcher Subagent** (`src/agents/topic_researcher.py`)
+   - Researches ONE user-named topic given in natural language (`--topics`)
+   - Returns a validated `TopicResearch` object via deepagents `response_format`
+   - Tools: `search_ai_news`, `fetch_article_content`
 
-3. **Topic Selection Agent** (`src/agents/topic_selector.py`)
-   - Selects 3 main topics + 1 study café topic
-   - Supports Human-in-the-Loop approval via `interrupt_on` config
-   - Pure reasoning agent (no tools)
+3. **Weekly Research** (`src/tools/research_collector.py`) — not an agent
+   - `run_weekly_research(date)` searches 7 categories, dedupes, date-filters,
+     ranks, fetches, and batch-summarizes with a cheap model
+   - Writes `articles/{date}/research_results.md` and caches candidates to
+     `artifacts/research/{date}/candidates.json`
+   - Returns only a one-line receipt; candidates never enter the model's context
 
 4. **Tone Editor Agent** (`src/agents/tone_editor.py`)
    - Edits articles to match Automata's tone & manner
@@ -83,35 +90,34 @@ Built with `deepagents` (LangGraph wrapper), consisting of:
 
 The standard newsletter generation follows this sequence:
 
-1. Research Agent collects latest AI/LLM news
-2. Topic Selector chooses 4 topics (3 main + 1 study café)
-3. Main agent drafts 400-600 word articles for each topic
-4. Tone Editor refines each article to Automata style
+1. `run.py` computes `open_slots = --count - len(--topics)`
+2. Orchestrator concurrently: `topic-researcher` per named topic + `run_weekly_research`
+3. Selection tool returns resolved topic dicts (user-picked or auto)
+4. `article-writer` drafts all topics in parallel (research + draft + tone in one pass)
 5. Articles saved to `articles/{YYYY-MM-DD}/0X_topic.md`
-6. `merge_newsletter()` combines articles into final `newsletter.md`
+6. `merge_newsletter()` produces `newsletter.md`
 
 ### Directory Structure
 
 ```
 src/
-├── config.py              # System prompts, API keys, templates
-├── main.py                # Orchestrator agent and workflow
+├── config.py                 # Prompts, API keys, templates
+├── main.py                   # Orchestrator agent and streaming loop
 ├── agents/
-│   ├── research.py        # News gathering subagent
-│   ├── topic_selector.py  # Topic curation subagent
-│   └── tone_editor.py     # Style editing subagent
+│   ├── topic_researcher.py   # Single user-named topic -> TopicResearch
+│   ├── article_writer.py     # Research + draft + tone in one pass
+│   └── tone_editor.py        # Style editing subagent
 ├── tools/
-│   ├── search_tools.py    # Tavily & HackerNews search
-│   └── content_tools.py   # Article content fetching
+│   ├── search_tools.py       # Tavily, HackerNews, PyTorch-KR forum, GitHub search
+│   ├── content_tools.py      # Article fetching, official blog RSS, GitHub trending
+│   ├── research_collector.py # Weekly pipeline + run_weekly_research
+│   ├── research_report.py    # Pure render/parse (stdlib only)
+│   └── interrupt_tools.py    # request_topic_selection, auto_select_topics
 └── utils/
-    └── merge_articles.py  # Newsletter assembly utilities
+    └── merge_articles.py     # Newsletter assembly utilities
 
-articles/{YYYY-MM-DD}/     # Generated articles by date
-├── 01_topic1.md
-├── 02_topic2.md
-├── 03_topic3.md
-├── 04_study_cafe.md
-└── newsletter.md          # Final merged newsletter
+artifacts/research/{DATE}/   # candidates.json, raw_search_results.json (gitignored)
+articles/{YYYY-MM-DD}/       # research_results.md, 0X_topic.md, newsletter.md
 ```
 
 ## Important Implementation Details
@@ -119,32 +125,38 @@ articles/{YYYY-MM-DD}/     # Generated articles by date
 ### Agent Configuration
 
 Subagents are defined as dictionaries with:
-- `name`: Agent identifier (used in `interrupt_on`)
+- `name`: Agent identifier
 - `description`: What the agent does
 - `system_prompt`: Detailed instructions (from `config.py`)
 - `tools`: List of function references
+- `response_format`: Optional pydantic model for structured output
 
-Example from `src/agents/research.py`:
+Example from `src/agents/topic_researcher.py`:
 ```python
-research_subagent = {
-    "name": "research-agent",
+topic_researcher_agent = {
+    "name": "topic-researcher",
     "description": "...",
-    "system_prompt": RESEARCH_AGENT_PROMPT,
-    "tools": [search_ai_news, search_hackernews, fetch_article_content],
+    "system_prompt": TOPIC_RESEARCHER_PROMPT,
+    "tools": [search_ai_news, fetch_article_content],
+    "response_format": TopicResearch,
 }
 ```
 
 ### Human-in-the-Loop
 
-Enable topic approval by passing `use_hitl=True` to `create_newsletter_agent()`:
+`--hitl` swaps which selection tool is registered on the orchestrator:
 
-```python
-agent_config["interrupt_on"] = {
-    "topic-selector": {
-        "allowed_decisions": ["approve", "edit", "reject"]
-    }
-}
-```
+| Run config | Selection tool |
+|---|---|
+| `--hitl`, open slots > 0 | `request_topic_selection` — interrupts, user picks by number |
+| no `--hitl`, open slots > 0 | `auto_select_topics` — top-N by score |
+| open slots == 0 | neither; no research tools registered at all |
+
+`request_topic_selection` loads `candidates.json`, renders the list itself, and
+resolves the user's numbers to candidate dicts in Python. The orchestrator never
+sees the candidate list and never maps numbers to topics.
+
+HITL requires a checkpointer (`MemorySaver`), wired automatically.
 
 ### Newsletter Merging
 
@@ -187,12 +199,22 @@ Whitelisted domains:
 - Tech platforms: huggingface.co, arxiv.org
 - News outlets: techcrunch.com, theverge.com, venturebeat.com, wired.com, arstechnica.com
 
-Uses `search_depth="advanced"` for comprehensive results.
+Uses `search_depth="advanced"` and `topic="news"` (required for Tavily to
+populate `published_date` — the default topic never returns it) for
+recent, dated results.
 
 ### HackerNews Search (`search_hackernews`)
 
 Uses Algolia HN API with `tags=story` filter.
 Returns: title, URL, HN discussion URL, points, comment count, author, timestamp.
+
+### GitHub (`search_github_repos`, `fetch_github_trending`)
+
+Two signals under the `github_trending` category:
+- `search_github_repos`: GitHub Search API, repos created in the last 14 days, sorted by stars — "just launched."
+- `fetch_github_trending`: scrapes `github.com/trending?since=weekly`, keyword-filtered to AI/agent-related repos — "viral this week" (stars gained, not total; the Search API can't expose this).
+
+No `GITHUB_TOKEN` required — unauthenticated rate limit (10 req/min) comfortably covers this project's usage.
 
 ## Package Manager: uv
 
