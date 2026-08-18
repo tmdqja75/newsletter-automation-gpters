@@ -34,7 +34,7 @@
 **Interfaces:**
 - Produces: 5 importable, stdlib-only Python modules at `scripts/humanize/`. `prepare_monolith_input.py` and `verify_gates.py` are invoked later (Task 2) as `python3 scripts/humanize/<name>.py --run-dir ... --genre ...` from the repo root; both import sibling modules (`console`, `checks`) and `skills/humanize-korean/references/metrics_v2.py` (Task 2) via `sys.path` manipulation already present in the vendored source — no changes needed to make that work as long as directory layout matches this plan exactly.
 
-- [ ] **Step 1: Create the target directory and download the 5 files verbatim**
+- [x] **Step 1: Create the target directory and download the 5 files verbatim**
 
 ```bash
 mkdir -p scripts/humanize
@@ -46,7 +46,7 @@ curl -sL "$BASE/console.py" -o scripts/humanize/console.py
 curl -sL "$BASE/checks.py" -o scripts/humanize/checks.py
 ```
 
-- [ ] **Step 2: Verify byte sizes match the upstream commit used for this plan (catches truncated/failed downloads)**
+- [x] **Step 2: Verify byte sizes match the upstream commit used for this plan (catches truncated/failed downloads)**
 
 ```bash
 wc -c scripts/humanize/*.py
@@ -54,7 +54,7 @@ wc -c scripts/humanize/*.py
 
 Expected (bytes): `prepare_monolith_input.py` 38561, `verify_gates.py` 11610, `sanitize_text.py` 11519, `console.py` 2378, `checks.py` 17340.
 
-- [ ] **Step 3: Write the vendoring test**
+- [x] **Step 3: Write the vendoring test**
 
 ```python
 # tests/test_humanize_vendoring.py
@@ -79,12 +79,12 @@ def test_vendored_scripts_exist_and_parse():
         ast.parse(path.read_text(encoding="utf-8"), filename=rel_path)
 ```
 
-- [ ] **Step 4: Run it**
+- [x] **Step 4: Run it**
 
 Run: `uv run pytest tests/test_humanize_vendoring.py -v`
 Expected: PASS (2 files touched so far only cover the 5 scripts assertion — the `skills/` half of this test is added in Task 2, same file, same test function extended there)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/humanize/ tests/test_humanize_vendoring.py
@@ -111,7 +111,7 @@ git commit -m "feat: vendor humanize-korean scripts from im-not-ai"
 **Interfaces:**
 - Produces: a deepagents-format skill directory at `skills/humanize-korean/` (bare `SKILL.md` + `references/`) that `SkillsMiddleware` (via article-writer's `skills=["skills/humanize-korean/"]`, wired in Task 5) can list and article-writer can `read_file`.
 
-- [ ] **Step 1: Download the 9 reference files verbatim**
+- [x] **Step 1: Download the 9 reference files verbatim**
 
 ```bash
 mkdir -p skills/humanize-korean/references
@@ -127,7 +127,7 @@ curl -sL "$BASE/diagnosis-rules.md" -o skills/humanize-korean/references/diagnos
 curl -sL "$BASE/rewriting-playbook.md" -o skills/humanize-korean/references/rewriting-playbook.md
 ```
 
-- [ ] **Step 2: Verify byte sizes**
+- [x] **Step 2: Verify byte sizes**
 
 ```bash
 wc -c skills/humanize-korean/references/*
@@ -135,7 +135,7 @@ wc -c skills/humanize-korean/references/*
 
 Expected (bytes): `metrics_v2.py` 31314, `metrics.py` 14550, `baseline.json` 6139, `baseline_v2.json` 13487, `quick-rules.md` 10654, `quick-rules.header.md` 1657, `quick-rules.footer.md` 2033, `diagnosis-rules.md` 13082, `rewriting-playbook.md` 12133.
 
-- [ ] **Step 3: Write the edited `SKILL.md`**
+- [x] **Step 3: Write the edited `SKILL.md`**
 
 Create `skills/humanize-korean/SKILL.md` with exactly this content (this is the upstream orchestrator SKILL.md, edited per the spec: heavy/chunk path removed, `Agent`→`task`, `Bash`→`execute`, `Glob`→`glob`, `${SKILL_ROOT}` resolution dropped in favor of fixed repo-relative paths, inline-citation preservation rule added):
 
@@ -285,7 +285,7 @@ exit code로 분기한다:
 - 윤문 처방 (진단 전용): `skills/humanize-korean/references/rewriting-playbook.md`
 ```
 
-- [ ] **Step 4: Extend the vendoring test to cover the skill directory**
+- [x] **Step 4: Extend the vendoring test to cover the skill directory**
 
 Modify `tests/test_humanize_vendoring.py` — add:
 
@@ -316,12 +316,12 @@ def test_skill_md_exists_with_frontmatter():
     assert "(출처: https://" in content  # citation-preservation rule present
 ```
 
-- [ ] **Step 5: Run it**
+- [x] **Step 5: Run it**
 
 Run: `uv run pytest tests/test_humanize_vendoring.py -v`
 Expected: PASS (all vendoring + SKILL.md assertions green)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add skills/humanize-korean/ tests/test_humanize_vendoring.py
@@ -338,7 +338,7 @@ git commit -m "feat: vendor humanize-korean skill references and write edited SK
 **Interfaces:**
 - Produces: `HUMANIZE_MONOLITH_PROMPT`, `HUMANIZE_DIAGNOSTICIAN_PROMPT`, `HUMANIZE_FINALIZER_PROMPT` — three module-level string constants in `src/config.py`, following the same pattern as `ORCHESTRATOR_PROMPT`/`TOPIC_RESEARCHER_PROMPT`/`ARTICLE_WRITER_PROMPT` already there. Consumed by Task 4's `src/agents/humanize_agents.py`.
 
-- [ ] **Step 1: Append the three prompt constants to `src/config.py`**
+- [x] **Step 1: Append the three prompt constants to `src/config.py`**
 
 Insert immediately after the `ARTICLE_WRITER_PROMPT` closing `"""` (after the existing line `MCP 커뮤니티는 이제 "양적 성장"에서 "질적 안정성"으로 초점을 전환해야 할 시점입니다. 더 많은 도구가 아니라, 더 안전하고 신뢰할 수 있는 도구가 필요한 때예요.\n\n"""`), before the `# Newsletter template` section:
 
@@ -629,12 +629,12 @@ Standard 경로의 승급 시 콜. 윤문된 본문을 받아 **원문과 직접
 - 다른 에이전트를 호출하지 않는다."""
 ```
 
-- [ ] **Step 2: Verify the module still imports cleanly**
+- [x] **Step 2: Verify the module still imports cleanly**
 
 Run: `uv run python -c "from src.config import HUMANIZE_MONOLITH_PROMPT, HUMANIZE_DIAGNOSTICIAN_PROMPT, HUMANIZE_FINALIZER_PROMPT; print(len(HUMANIZE_MONOLITH_PROMPT), len(HUMANIZE_DIAGNOSTICIAN_PROMPT), len(HUMANIZE_FINALIZER_PROMPT))"`
 Expected: three positive integers printed, no traceback.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/config.py
@@ -653,7 +653,7 @@ git commit -m "feat: add ported humanize sub-agent prompts to config"
 - Consumes: `HUMANIZE_MONOLITH_PROMPT`, `HUMANIZE_DIAGNOSTICIAN_PROMPT`, `HUMANIZE_FINALIZER_PROMPT` from `src/config.py` (Task 3).
 - Produces: `humanize_monolith_agent`, `humanize_diagnostician_agent`, `humanize_finalizer_agent` — three plain `SubAgent`-shaped dicts (`name`, `description`, `system_prompt`, no `tools` key so each inherits article-writer's default tools/filesystem access, no `model` key so each inherits article-writer's model). Consumed by Task 5's `src/agents/article_writer.py`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_humanize_agents_wiring.py
@@ -683,12 +683,12 @@ def test_humanize_agents_preserve_citation_format():
         assert "(출처: https://" in agent["system_prompt"]
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `uv run pytest tests/test_humanize_agents_wiring.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'src.agents.humanize_agents'`
 
-- [ ] **Step 3: Write `src/agents/humanize_agents.py`**
+- [x] **Step 3: Write `src/agents/humanize_agents.py`**
 
 ```python
 """Ported humanize-korean runtime sub-agents.
@@ -727,12 +727,12 @@ humanize_finalizer_agent = {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `uv run pytest tests/test_humanize_agents_wiring.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/agents/humanize_agents.py tests/test_humanize_agents_wiring.py
@@ -754,7 +754,7 @@ git commit -m "feat: define the 3 ported humanize sub-agents"
 
 **Accepted tradeoff — construction timing:** `CompiledSubAgent` requires an already-compiled `Runnable`, so `create_deep_agent(...)` for article-writer's nested graph now runs at *module import time* (`import src.agents.article_writer`) instead of inside `create_newsletter_agent()` at call time (verified empirically: `create_deep_agent(model="anthropic:claude-sonnet-4-6", ...)` constructs successfully with no `ANTHROPIC_API_KEY` set at all — model resolution is lazy, only `.invoke()` needs a real key). This means every test that imports `src.agents` or `src.main` now builds 4 real (uninvoked) LangGraph graphs (article-writer + its 3 humanize-* children) at collection time, and the existing `monkeypatch.setattr("src.main.create_deep_agent", ...)` pattern in `test_create_newsletter_agent_uses_article_writer` no longer intercepts this nested construction (it only ever intercepted the top-level orchestrator's call, which is unaffected by this plan). No test in this plan relies on mocking the nested construction, so this is safe as designed — noted here so a future engineer doesn't mistake it for a bug.
 
-- [ ] **Step 1: Update the broken existing test first (red)**
+- [x] **Step 1: Update the broken existing test first (red)**
 
 Edit `tests/test_agents_wiring.py`, replace lines 11-14:
 
@@ -777,7 +777,7 @@ def test_article_writer_agent_is_compiled_subagent():
 Run: `uv run pytest tests/test_agents_wiring.py -v`
 Expected: FAIL — `test_article_writer_agent_is_compiled_subagent` fails because `article_writer_agent` is still the old plain-dict shape (no `"runnable"` key yet).
 
-- [ ] **Step 2: Insert the humanize-pass instruction into `ARTICLE_WRITER_PROMPT`**
+- [x] **Step 2: Insert the humanize-pass instruction into `ARTICLE_WRITER_PROMPT`**
 
 In `src/config.py`, find this line inside `ARTICLE_WRITER_PROMPT` (currently the line immediately before the worked example):
 
@@ -795,7 +795,7 @@ Replace it with:
 아래는 위 가이드가 적용된 아티클 예시입니다:
 ```
 
-- [ ] **Step 3: Rewrite `src/agents/article_writer.py`**
+- [x] **Step 3: Rewrite `src/agents/article_writer.py`**
 
 ```python
 """Article writing subagent: researches, drafts, tone-edits, and humanizes in one pass."""
@@ -826,17 +826,17 @@ article_writer_agent = {
 }
 ```
 
-- [ ] **Step 4: Run the updated test to verify it passes**
+- [x] **Step 4: Run the updated test to verify it passes**
 
 Run: `uv run pytest tests/test_agents_wiring.py -v`
 Expected: PASS — all 5 tests in the file green, including `test_article_writer_agent_is_compiled_subagent` and the unrelated `test_create_newsletter_agent_uses_article_writer`/topic-researcher tests (unaffected by this change).
 
-- [ ] **Step 5: Run the full existing test suite to check for other breakage**
+- [x] **Step 5: Run the full existing test suite to check for other breakage**
 
 Run: `uv run pytest tests/ -v -m "not integration"`
 Expected: PASS. If anything outside `test_agents_wiring.py` fails, it means something else in the codebase reached into `article_writer_agent["tools"]` or `article_writer_agent["system_prompt"]` directly — grep for `article_writer_agent\[` across `src/` and `tests/` and fix any other direct-key-access call sites the same way as Step 1.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/agents/article_writer.py src/config.py tests/test_agents_wiring.py
@@ -856,7 +856,7 @@ git commit -m "feat: restructure article-writer as a nested CompiledSubAgent wit
 
 **Known test-coverage gap (verified via a standalone construction spike, not a bug in this plan — just a limit of what these tests can catch):** `SkillsMiddleware` resolves `skills=[...]` paths lazily, inside a `before_agent` hook at **invoke** time, not at `create_deep_agent()` construction time. A nonexistent or misspelled `skills/humanize-korean/` path constructs identically to a valid one — no exception, just a collected `<skill_load_warnings>` block that only appears once the agent actually runs. None of this plan's tests call `.invoke()`, so none of them can catch a broken skill path — passing tests + passing construction prove the wiring is *shaped* correctly, not that the skill actually loads. The Task 6 Step 5 manual smoke test below must specifically check for this, not just confirm the run completes without crashing.
 
-- [ ] **Step 1: Add `_workspace/` to `.gitignore`**
+- [x] **Step 1: Add `_workspace/` to `.gitignore`**
 
 Edit `.gitignore`, in the "Project specific" section (currently `articles/**/draft_*`, `articles/`, `artifacts/`, `log-analysis/`, `.claude/`), add:
 
@@ -864,7 +864,7 @@ Edit `.gitignore`, in the "Project specific" section (currently `articles/**/dra
 _workspace/
 ```
 
-- [ ] **Step 2: Write the failing blast-radius test**
+- [x] **Step 2: Write the failing blast-radius test**
 
 Append to `tests/test_humanize_agents_wiring.py`:
 
@@ -910,19 +910,19 @@ def test_orchestrator_backend_is_not_local_shell(monkeypatch):
 
 Note: `LocalShellBackend` subclasses `FilesystemBackend`, so the orchestrator-side assertion must check `not isinstance(..., LocalShellBackend)` specifically, not just `isinstance(..., FilesystemBackend)` — this is the actual blast-radius containment claim from the spec and must be checked precisely, not just approximately.
 
-- [ ] **Step 3: Run it to verify it fails**
+- [x] **Step 3: Run it to verify it fails**
 
 Run: `uv run pytest tests/test_humanize_agents_wiring.py -v`
 Expected: FAIL if Task 5 wasn't done correctly (e.g. `LocalShellBackend` accidentally used for the orchestrator too), otherwise PASS immediately since Task 5 already implemented the real wiring — this step is a verification gate on Task 5's output, not new production code.
 
-- [ ] **Step 4: If it fails, fix `src/main.py`'s `create_newsletter_agent`/`src/agents/article_writer.py`** so the orchestrator keeps `FilesystemBackend(root_dir=".", virtual_mode=True)` (unchanged from before this plan) and only article-writer's nested `runnable` uses `LocalShellBackend`.
+- [x] **Step 4: If it fails, fix `src/main.py`'s `create_newsletter_agent`/`src/agents/article_writer.py`** so the orchestrator keeps `FilesystemBackend(root_dir=".", virtual_mode=True)` (unchanged from before this plan) and only article-writer's nested `runnable` uses `LocalShellBackend`.
 
-- [ ] **Step 5: Run the full test suite one more time**
+- [x] **Step 5: Run the full test suite one more time**
 
 Run: `uv run pytest tests/ -v -m "not integration"`
 Expected: PASS, all tests including the new ones.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .gitignore tests/test_humanize_agents_wiring.py
