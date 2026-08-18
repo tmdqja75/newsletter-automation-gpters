@@ -203,6 +203,16 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
     return create_deep_agent(**agent_config)
 
 
+_TODO_STATUS_ICON = {"pending": "⬜", "in_progress": "🔄", "completed": "✅"}
+
+
+def _print_todos(todos: list[dict]) -> None:
+    print("📋 할 일 목록:")
+    for todo in todos:
+        icon = _TODO_STATUS_ICON.get(todo.get("status"), "•")
+        print(f"   {icon} {todo.get('content', '')}")
+
+
 def _handle_event(event: dict, metrics, final):
     """Print one stream event. Returns (final_content, interrupt_payload_or_None)."""
     pending = None
@@ -218,6 +228,8 @@ def _handle_event(event: dict, metrics, final):
                     print(f"📝 응답 수신 ({len(str(msg.content))} 글자)")
                 for tool_call in getattr(msg, "tool_calls", None) or []:
                     print(f"🔨 도구 호출: {tool_call.get('name', 'unknown')}")
+                    if tool_call.get("name") == "write_todos":
+                        _print_todos(tool_call.get("args", {}).get("todos", []))
 
         elif key == "tools":
             for msg in messages:
