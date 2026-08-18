@@ -813,8 +813,12 @@ def test_collect_weekly_research_is_not_an_agent_tool():
     """Research is Python-driven now; no subagent should hold the collector."""
     from src.agents import article_writer_agent, topic_researcher_agent
 
-    for agent in (article_writer_agent, topic_researcher_agent):
-        assert collect_weekly_research not in agent["tools"]
+    assert collect_weekly_research not in topic_researcher_agent["tools"]
+    # article-writer is now a CompiledSubAgent (see docs/superpowers/plans/
+    # 2026-08-18-im-not-ai-skill-import.md Task 5) — its tools live inside the
+    # nested runnable, not a top-level "tools" key, so there's no dict slot
+    # this could accidentally land in.
+    assert "tools" not in article_writer_agent
 
 
 def test_core_strips_prefetched_content(monkeypatch, tmp_path):

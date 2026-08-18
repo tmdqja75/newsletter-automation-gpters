@@ -8,10 +8,10 @@ from src.tools.content_tools import fetch_article_content
 from src.tools.search_tools import search_ai_news
 
 
-def test_article_writer_agent_has_research_tools():
+def test_article_writer_agent_is_compiled_subagent():
     assert article_writer_agent["name"] == "article-writer"
-    assert search_ai_news in article_writer_agent["tools"]
-    assert fetch_article_content in article_writer_agent["tools"]
+    assert "runnable" in article_writer_agent
+    assert "tools" not in article_writer_agent  # tools now live inside the nested runnable
 
 
 def test_create_newsletter_agent_uses_article_writer(monkeypatch):
