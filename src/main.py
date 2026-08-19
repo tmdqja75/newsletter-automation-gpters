@@ -9,6 +9,7 @@ from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
+from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
@@ -203,6 +204,30 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
     return create_deep_agent(**agent_config)
 
 
+class NestedAgentActivityLogger(BaseCallbackHandler):
+    """Prints progress from subagents invoked via the `task` tool (article-writer,
+    humanize-monolith/diagnostician/finalizer, topic-researcher).
+
+    `task` calls `subagent.invoke(...)` with no streaming, so the top-level
+    `agent.stream()` loop in `_run_with_interrupts` sees nothing while a
+    subagent runs. Callbacks propagate into nested `.invoke()` calls even
+    without an explicit config, so binding this once here surfaces the
+    otherwise-silent nested activity.
+    """
+
+    def on_chat_model_start(self, serialized, messages, *, metadata=None, **kwargs) -> None:
+        node = (metadata or {}).get("langgraph_node", "?")
+        print(f"   🤖 [{node}] 모델 호출")
+
+    def on_tool_start(self, serialized, input_str, *, metadata=None, **kwargs) -> None:
+        node = (metadata or {}).get("langgraph_node", "?")
+        name = serialized.get("name", "tool")
+        print(f"   🔧 [{node}] 도구 호출: {name}")
+
+    def on_tool_end(self, output, **kwargs) -> None:
+        print("   ✅ [subagent] 도구 완료")
+
+
 _TODO_STATUS_ICON = {"pending": "⬜", "in_progress": "🔄", "completed": "✅"}
 
 
@@ -332,7 +357,10 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
     final_content = None
 
     try:
-        config = {"configurable": {"thread_id": f"newsletter-{target_date}"}}
+        config = {
+            "configurable": {"thread_id": f"newsletter-{target_date}"},
+            "callbacks": [NestedAgentActivityLogger()],
+        }
         final_content = _run_with_interrupts(
             agent, {"messages": [{"role": "user", "content": prompt}]}, config, metrics
         )

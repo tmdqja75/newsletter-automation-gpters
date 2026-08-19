@@ -20,7 +20,7 @@ article_writer_agent = {
         system_prompt=ARTICLE_WRITER_PROMPT,
         tools=[search_ai_news, fetch_article_content],
         subagents=[humanize_monolith_agent, humanize_diagnostician_agent, humanize_finalizer_agent],
-        skills=["skills/humanize-korean/"],
+        skills=["skills/"],
         backend=LocalShellBackend(root_dir=".", virtual_mode=True),
     ),
 }
