@@ -15,8 +15,9 @@ preferences from prior sessions.
 1. After the first draft/merge completes, let the user give feedback in the
    same run and have the agent revise (files + `newsletter.md`) before
    exiting, in a loop until the user is done.
-2. Let the agent remember explicit user preferences ("기억해줘 ...",
-   "remember ...") across runs, and apply them to every future run's
+2. Let the agent infer taste/writing-style preferences from the user's
+   feedback during the conversation itself — no explicit "remember" trigger
+   required — save them across runs, and apply them to every future run's
    research/writing/tone.
 3. Let the user close the session and come back later (same day or weeks
    after) and resume feedback on the same newsletter thread — not just
@@ -24,7 +25,16 @@ preferences from prior sessions.
 
 ## Non-goals
 
-- No auto-inferred preferences from edits/feedback (explicit only).
+- No separate/background consolidation pass (no cron, no LangGraph Platform
+  deployment, no dedicated consolidation agent reviewing past threads).
+  Inference happens inline, in the same turn, as part of the normal
+  orchestrator conversation — considered and rejected the
+  [official deepagents background-consolidation pattern](https://docs.langchain.com/oss/python/deepagents/memory#background-consolidation)
+  because it requires a hosted LangGraph Platform deployment (cron jobs via
+  `client.crons.create()`, thread search via SDK) that this local CLI tool
+  doesn't have.
+- No confirmation step before saving an inferred preference — saved
+  immediately, mentioned in the same reply (see Design).
 - No auto-detection of "resume vs regenerate" — resuming requires an
   explicit CLI flag (see below), never inferred from file presence.
 
@@ -83,11 +93,14 @@ preferences from prior sessions.
     appended to `ARTICLE_WRITER_PROMPT` so the subagent's tone/style output
     honors it directly, independent of whether the orchestrator relays it
     when delegating.
-- `ORCHESTRATOR_PROMPT` gets an instruction: when a user feedback message
-  explicitly asks to remember something (starts with or contains
-  "기억해줘"/"remember"), **append** one line to `memory/preferences.md`
-  via the file-write tool (never overwrite the file), then confirm to the
-  user in its reply before continuing the normal feedback flow.
+- `ORCHESTRATOR_PROMPT` gets an instruction: when a user's feedback message
+  reveals a taste or writing-style signal (an explicit "기억해줘"/"remember"
+  ask, or an implicit one like "이모지 빼줘", "더 짧게 써줘", a correction that
+  reveals a preference), summarize it in one line and **append** it to
+  `memory/preferences.md` via the file-write tool (never overwrite the
+  file) — immediately, without asking permission first — then mention what
+  it saved in the same reply. Feedback that's just a factual
+  correction/typo fix with no taste signal is not saved.
 
 ### Data flow
 
@@ -104,7 +117,7 @@ run.py → run_newsletter_generation                 # first-run path
       if blank/done/exit: break
       final_content = _run_with_interrupts(feedback message, same thread)
         # orchestrator may edit article files, re-merge,
-        # and/or append memory/preferences.md if asked to remember
+        # and/or append memory/preferences.md if the feedback reveals a taste signal
 
 run.py --feedback DATE_DIR → resume_feedback(date_dir)   # later-session path
   → create_newsletter_agent(..., preferences=... )  # same SqliteSaver db, same thread_id
