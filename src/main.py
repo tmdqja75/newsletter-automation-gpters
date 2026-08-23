@@ -304,6 +304,23 @@ def _run_with_interrupts(agent, initial, config, metrics):
         stream_input = Command(resume=_prompt_user(pending))
 
 
+def _run_feedback_loop(agent, config, metrics, final_content):
+    """Prompt for feedback after a draft; stream each round on the same thread
+    until the user signals they're done."""
+    while True:
+        print("\n" + "=" * 40)
+        print("📋 현재 결과:")
+        print("=" * 40)
+        print(final_content or "(응답 없음)")
+
+        feedback = input("\n💬 피드백을 입력하세요 (완료: 빈 줄/done/exit/끝): ").strip()
+        if not feedback or feedback.lower() in {"done", "exit"} or feedback == "끝":
+            return final_content
+
+        stream_input = {"messages": [{"role": "user", "content": feedback}]}
+        final_content = _run_with_interrupts(agent, stream_input, config, metrics)
+
+
 def _build_prompt(target_date: str, topics: list[str], open_slots: int, preferences: str) -> str:
     lines = [f"{target_date} 발행 오토마타 뉴스레터를 작성해주세요.", ""]
     if preferences:
@@ -358,6 +375,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
         final_content = _run_with_interrupts(
             agent, {"messages": [{"role": "user", "content": prompt}]}, config, metrics
         )
+        final_content = _run_feedback_loop(agent, config, metrics, final_content)
 
         print("\n" + "=" * 40)
         print("📋 최종 결과:")
