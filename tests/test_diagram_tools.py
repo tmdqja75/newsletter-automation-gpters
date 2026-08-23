@@ -27,6 +27,23 @@ def test_create_svg_diagram_worth_it_writes_file(tmp_path, monkeypatch):
     assert result == "![테스트 캡션](01_topic.svg)\n\n테스트 캡션"
 
 
+def test_create_svg_diagram_strips_markdown_code_fence(tmp_path, monkeypatch):
+    """Models often wrap JSON output in ```json ... ``` despite instructions not to."""
+    monkeypatch.chdir(tmp_path)
+    payload = json.dumps({"svg": VALID_SVG, "caption": "펜스 테스트", "worth_it": True})
+
+    def fenced_llm(system_prompt, user_content):
+        return f"```json\n{payload}\n```"
+
+    result = create_svg_diagram(
+        "01_topic", "2026-08-23", article_text="본문", focus="핵심 흐름", llm_call=fenced_llm
+    )
+
+    svg_path = tmp_path / "articles" / "2026-08-23" / "01_topic.svg"
+    assert svg_path.exists()
+    assert result == "![펜스 테스트](01_topic.svg)\n\n펜스 테스트"
+
+
 def test_create_svg_diagram_not_worth_it_writes_nothing(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     llm_call = _fake_llm({"svg": "", "caption": "", "worth_it": False})

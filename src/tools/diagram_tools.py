@@ -21,6 +21,15 @@ def _default_llm_call(system_prompt: str, user_content: str) -> str:
     return content if isinstance(content, str) else str(content)
 
 
+def _strip_code_fence(raw: str) -> str:
+    """Strip a leading/trailing ```json ... ``` fence, if the model added one."""
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        text = text.rsplit("```", 1)[0]
+    return text.strip()
+
+
 def create_svg_diagram(
     topic_slug: str,
     date_dir: str,
@@ -57,7 +66,7 @@ def create_svg_diagram(
 
     try:
         raw = llm_call(config.SVG_DIAGRAM_PROMPT, user_content)
-        data = json.loads(raw)
+        data = json.loads(_strip_code_fence(raw))
     except Exception as exc:
         return f"오류: SVG 생성 실패 - {exc}"
 
