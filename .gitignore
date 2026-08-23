@@ -53,6 +53,7 @@ Thumbs.db
 articles/**/draft_*
 articles/
 artifacts/
+memory/
 log-analysis/
 .claude/
 

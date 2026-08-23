@@ -34,6 +34,7 @@ def to_model_spec(model_name: str) -> str:
 
 # Paths
 ARTICLES_DIR = "articles"
+THREADS_DB = "memory/threads.sqlite"
 
 # Prompts
 ORCHESTRATOR_PROMPT = """당신은 '오토마타' AI 뉴스레터 작성을 조율하는 메인 에이전트입니다.

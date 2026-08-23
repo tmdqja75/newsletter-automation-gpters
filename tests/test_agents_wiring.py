@@ -22,6 +22,7 @@ def test_create_newsletter_agent_uses_article_writer(monkeypatch):
         return SimpleNamespace()
 
     monkeypatch.setattr("src.main.create_deep_agent", fake_create_deep_agent)
+    monkeypatch.setattr("src.main._build_checkpointer", lambda: SimpleNamespace())
 
     create_newsletter_agent("2026-06-17")
 

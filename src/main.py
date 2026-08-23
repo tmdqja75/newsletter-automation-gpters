@@ -7,9 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import sqlite3
+
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 import re
@@ -20,6 +22,7 @@ from .config import (
     ANTHROPIC_API_KEY,
     TAVILY_API_KEY,
     MODEL_NAME,
+    THREADS_DB,
     to_model_spec,
 )
 from .agents import topic_researcher_agent, article_writer_agent
@@ -173,6 +176,15 @@ def save_article(content: str, filename: str, date_dir: str) -> str:
     return str(file_path)
 
 
+def _build_checkpointer() -> SqliteSaver:
+    """Persistent checkpointer so a thread's message history survives process restarts."""
+    Path(THREADS_DB).parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(THREADS_DB, check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
+    checkpointer.setup()
+    return checkpointer
+
+
 def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: bool = False):
     """Create the newsletter orchestrator.
 
@@ -195,10 +207,8 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
         "tools": tools,
         "subagents": [topic_researcher_agent, article_writer_agent],
         "backend": FilesystemBackend(root_dir=".", virtual_mode=True),
+        "checkpointer": _build_checkpointer(),
     }
-
-    if use_hitl and open_slots > 0:
-        agent_config["checkpointer"] = MemorySaver()
 
     return create_deep_agent(**agent_config)
 

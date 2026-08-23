@@ -3,6 +3,8 @@ three-level nesting that dead-ended after two."""
 
 from types import SimpleNamespace
 
+from langgraph.checkpoint.sqlite import SqliteSaver
+
 import src.main as main
 
 
@@ -74,12 +76,39 @@ def test_prompt_user_rejects_wrong_count_then_accepts(monkeypatch, capsys):
     assert "1개" in capsys.readouterr().out
 
 
+def test_build_checkpointer_creates_sqlite_file(tmp_path, monkeypatch):
+    db_path = tmp_path / "sub" / "threads.sqlite"
+    monkeypatch.setattr(main, "THREADS_DB", str(db_path))
+
+    checkpointer = main._build_checkpointer()
+
+    assert db_path.exists()
+    assert isinstance(checkpointer, SqliteSaver)
+
+
+def test_create_agent_always_attaches_checkpointer(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        "src.main.create_deep_agent",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
+    )
+    monkeypatch.setattr(main, "_build_checkpointer", lambda: SimpleNamespace(name="fake"))
+
+    main.create_newsletter_agent("2026-08-05", open_slots=2, use_hitl=True)
+    assert "checkpointer" in captured
+
+    captured.clear()
+    main.create_newsletter_agent("2026-08-05", open_slots=2, use_hitl=False)
+    assert "checkpointer" in captured
+
+
 def test_create_agent_registers_hitl_tool_only_with_hitl(monkeypatch):
     captured = {}
     monkeypatch.setattr(
         "src.main.create_deep_agent",
         lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
     )
+    monkeypatch.setattr(main, "_build_checkpointer", lambda: SimpleNamespace())
 
     main.create_newsletter_agent("2026-08-05", open_slots=2, use_hitl=True)
     names = {getattr(t, "__name__", "") for t in captured["tools"]}
@@ -92,7 +121,7 @@ def test_create_agent_registers_hitl_tool_only_with_hitl(monkeypatch):
     names = {getattr(t, "__name__", "") for t in captured["tools"]}
     assert "auto_select_topics" in names
     assert "request_topic_selection" not in names
-    assert "checkpointer" not in captured
+    assert "checkpointer" in captured
 
 
 def test_create_agent_omits_research_tools_when_no_open_slots(monkeypatch):
@@ -102,6 +131,7 @@ def test_create_agent_omits_research_tools_when_no_open_slots(monkeypatch):
         "src.main.create_deep_agent",
         lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
     )
+    monkeypatch.setattr(main, "_build_checkpointer", lambda: SimpleNamespace())
 
     main.create_newsletter_agent("2026-08-05", open_slots=0, use_hitl=True)
 
