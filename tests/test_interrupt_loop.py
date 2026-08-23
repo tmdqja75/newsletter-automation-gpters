@@ -171,3 +171,20 @@ def test_count_articles_ignores_generated_files(tmp_path, monkeypatch):
 def test_count_articles_returns_zero_when_missing(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert cli.count_articles("2026-08-05") == 0
+
+
+def test_main_feedback_flag_calls_resume_feedback(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["run.py", "--feedback", "2026-06-17"])
+    monkeypatch.setattr(
+        "src.main.resume_feedback",
+        lambda date_dir: {"final_content": "ok", "metrics_path": "p"} if date_dir == "2026-06-17" else None,
+    )
+
+    assert cli.main() == 0
+
+
+def test_main_feedback_flag_reports_failure(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["run.py", "--feedback", "missing-date"])
+    monkeypatch.setattr("src.main.resume_feedback", lambda date_dir: None)
+
+    assert cli.main() == 1
