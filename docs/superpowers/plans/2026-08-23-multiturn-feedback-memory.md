@@ -464,10 +464,11 @@ def test_orchestrator_handles_feedback_by_editing_saved_files():
     assert "피드백" in ORCHESTRATOR_PROMPT
 
 
-def test_orchestrator_appends_remembered_preferences():
-    """Explicit remember requests must append, never overwrite, the memory file."""
+def test_orchestrator_infers_preferences_without_explicit_trigger():
+    """Taste signals in feedback must be saved without requiring a "remember" keyword."""
     assert "memory/preferences.md" in ORCHESTRATOR_PROMPT
     assert "덧붙여" in ORCHESTRATOR_PROMPT
+    assert "취향" in ORCHESTRATOR_PROMPT
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -510,10 +511,13 @@ with:
 수정한 뒤 merge_newsletter를 다시 호출해 뉴스레터를 갱신하세요.
 
 ## 선호 기억하기
-사용자 메시지가 "기억해줘" 또는 "remember"를 포함하면, 그 내용을 한 줄로
-요약해 memory/preferences.md 파일에 **덧붙여 추가**하세요(기존 내용을
-지우거나 덮어쓰지 마세요). 저장한 뒤 무엇을 기억했는지 답변에서
-확인해주세요.
+사용자의 피드백에서 취향이나 문체 선호가 드러나면(예: "이모지 빼줘",
+"더 짧게 써줘" 같은 명시적 요청이든, 수정 지시에 취향이 묻어나는
+암묵적인 경우든) "기억해줘" 같은 명시적인 말이 없어도 그 내용을 한 줄로
+요약해 memory/preferences.md 파일에 **즉시 덧붙여 추가**하세요(기존 내용을
+지우거나 덮어쓰지 말고, 저장 여부를 먼저 묻지도 마세요). 저장한 뒤 무엇을
+기억했는지 답변에서 간단히 알려주세요. 단순 오탈자나 사실 정정처럼 취향과
+무관한 피드백은 저장하지 마세요.
 """
 ```
 
