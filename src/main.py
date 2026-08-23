@@ -395,6 +395,43 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
         return None
 
 
+def resume_feedback(date_dir: str) -> dict | None:
+    """Reattach to an already-generated newsletter's thread and continue the
+    feedback loop, without regenerating anything.
+
+    Args:
+        date_dir: Date directory of an existing newsletter (e.g. "2026-01-15").
+
+    Returns:
+        {"final_content": ..., "metrics_path": ...} or None on failure.
+    """
+    if not validate_api_keys():
+        return None
+
+    newsletter_path = Path(ARTICLES_DIR) / date_dir / "newsletter.md"
+    if not newsletter_path.exists():
+        print(f"❌ 뉴스레터를 찾을 수 없습니다: {newsletter_path}", file=sys.stderr)
+        return None
+
+    print(f"🔧 기존 스레드 재연결 중... ({date_dir})")
+    preferences = _read_memory()
+    agent = create_newsletter_agent(date_dir, open_slots=0, use_hitl=False, preferences=preferences)
+    config = {"configurable": {"thread_id": f"newsletter-{date_dir}"}}
+    metrics = NewsletterRunMetrics(date_dir, "feedback", _agent_model_spec())
+    final_content = newsletter_path.read_text(encoding="utf-8")
+
+    try:
+        final_content = _run_feedback_loop(agent, config, metrics, final_content)
+        metrics_path = metrics.save("completed", final_content=final_content)
+        print(f"📊 실행 메트릭 저장: {metrics_path}")
+        return {"final_content": final_content, "metrics_path": metrics_path}
+    except Exception as e:
+        metrics_path = metrics.save("failed", final_content=final_content, error=str(e))
+        print(f"\n❌ 피드백 처리 중 오류: {e}", file=sys.stderr)
+        print(f"📊 실행 메트릭 저장: {metrics_path}", file=sys.stderr)
+        return None
+
+
 def run_quick_test(target_date: str = None, use_hitl: bool = False,
                    user_topics: str = None, count: int = 1):
     """Generate a single article to smoke-test the pipeline."""

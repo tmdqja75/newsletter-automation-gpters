@@ -87,3 +87,29 @@ def test_feedback_loop_stops_on_done_keyword(monkeypatch):
 
     final = main._run_feedback_loop(agent, {}, _Metrics(), "원래 초안")
     assert final == "원래 초안"
+
+
+def test_resume_feedback_returns_none_when_newsletter_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(main, "validate_api_keys", lambda: True)
+
+    assert main.resume_feedback("2026-08-05") is None
+
+
+def test_resume_feedback_reads_existing_newsletter_and_runs_loop(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(main, "validate_api_keys", lambda: True)
+    monkeypatch.setattr(main, "_read_memory", lambda: "")
+    monkeypatch.setattr(main, "_build_checkpointer", lambda: SimpleNamespace())
+    monkeypatch.setattr(main, "create_deep_agent", lambda **kwargs: SimpleNamespace())
+
+    articles_dir = tmp_path / "articles" / "2026-08-05"
+    articles_dir.mkdir(parents=True)
+    (articles_dir / "newsletter.md").write_text("기존 뉴스레터", encoding="utf-8")
+
+    monkeypatch.setattr("builtins.input", lambda _: "")  # end loop immediately
+
+    result = main.resume_feedback("2026-08-05")
+
+    assert result["final_content"] == "기존 뉴스레터"
+    assert Path(result["metrics_path"]).exists()
