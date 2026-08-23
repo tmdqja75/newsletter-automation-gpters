@@ -16,6 +16,7 @@ def test_create_newsletter_agent_uses_configured_model(monkeypatch):
 
     monkeypatch.setattr("src.main.MODEL_NAME", "claude-haiku-4-5")
     monkeypatch.setattr("src.main.create_deep_agent", fake_create_deep_agent)
+    monkeypatch.setattr("src.main._build_checkpointer", lambda: SimpleNamespace())
 
     create_newsletter_agent("2026-06-17")
 
@@ -31,6 +32,7 @@ def test_create_newsletter_agent_preserves_provider_model_prefix(monkeypatch):
 
     monkeypatch.setattr("src.main.MODEL_NAME", "openai:gpt-5-mini")
     monkeypatch.setattr("src.main.create_deep_agent", fake_create_deep_agent)
+    monkeypatch.setattr("src.main._build_checkpointer", lambda: SimpleNamespace())
 
     create_newsletter_agent("2026-06-17")
 

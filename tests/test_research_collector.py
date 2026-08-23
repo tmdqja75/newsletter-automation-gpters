@@ -811,9 +811,9 @@ def test_collect_weekly_research_wrapper_total_failure_returns_valid_json(monkey
 
 def test_collect_weekly_research_is_not_an_agent_tool():
     """Research is Python-driven now; no subagent should hold the collector."""
-    from src.agents import article_writer_agent, topic_researcher_agent
+    from src.agents import build_article_writer_agent, topic_researcher_agent
 
-    for agent in (article_writer_agent, topic_researcher_agent):
+    for agent in (build_article_writer_agent(), topic_researcher_agent):
         assert collect_weekly_research not in agent["tools"]
 
 

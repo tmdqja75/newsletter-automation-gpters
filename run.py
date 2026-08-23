@@ -47,6 +47,7 @@ def main():
   python run.py --topics "X, Y" --count 4 --hitl   # X, Y 조사 + 후보에서 2개 선택
   python run.py --refresh                          # 리서치 캐시 무시하고 재수집
   python run.py --preview 2026-01-15               # 기존 아티클 미리보기
+  python run.py --feedback 2026-01-15              # 기존 뉴스레터에 피드백 이어서 반영
         """,
     )
 
@@ -68,6 +69,13 @@ def main():
         type=str,
         metavar="DATE_DIR",
         help="기존 아티클 병합만 수행 (날짜 디렉토리 지정)",
+    )
+
+    parser.add_argument(
+        "--feedback", "-f",
+        type=str,
+        metavar="DATE_DIR",
+        help="기존 뉴스레터 스레드에 피드백 반영 (날짜 디렉토리 지정, 재생성 없이 이어서 진행)",
     )
 
     parser.add_argument(
@@ -126,6 +134,17 @@ def main():
         except Exception as e:
             print(f"오류: {e}", file=sys.stderr)
             return 1
+
+    # Feedback mode: resume an existing thread without regenerating
+    if args.feedback:
+        from src.main import resume_feedback
+        result = resume_feedback(args.feedback)
+        if result is None:
+            print("❌ 피드백 처리 실패")
+            return 1
+        print("✅ 피드백 반영 완료!")
+        print(f"📁 결과 위치: articles/{args.feedback}/")
+        return 0
 
     # Full generation mode
     target_date = args.date or get_next_wednesday()

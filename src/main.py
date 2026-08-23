@@ -7,9 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import sqlite3
+
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 import re
@@ -20,9 +22,11 @@ from .config import (
     ANTHROPIC_API_KEY,
     TAVILY_API_KEY,
     MODEL_NAME,
+    THREADS_DB,
+    MEMORY_FILE,
     to_model_spec,
 )
-from .agents import topic_researcher_agent, article_writer_agent
+from .agents import topic_researcher_agent, build_article_writer_agent
 from .tools.research_collector import run_weekly_research
 from .tools.interrupt_tools import auto_select_topics, request_topic_selection
 from .utils.merge_articles import merge_newsletter
@@ -139,6 +143,12 @@ class NewsletterRunMetrics:
         return str(metrics_path)
 
 
+def _read_memory() -> str:
+    """Read saved user preferences, if any. Empty string when the file doesn't exist yet."""
+    path = Path(MEMORY_FILE)
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
 def validate_api_keys() -> bool:
     """Validate that required API keys are set."""
     missing = []
@@ -173,7 +183,16 @@ def save_article(content: str, filename: str, date_dir: str) -> str:
     return str(file_path)
 
 
-def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: bool = False):
+def _build_checkpointer() -> SqliteSaver:
+    """Persistent checkpointer so a thread's message history survives process restarts."""
+    Path(THREADS_DB).parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(THREADS_DB, check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
+    checkpointer.setup()
+    return checkpointer
+
+
+def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: bool = False, preferences: str = ""):
     """Create the newsletter orchestrator.
 
     Tool registration encodes the run mode, so "should I ask the user?" and
@@ -193,12 +212,10 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
         "model": _agent_model_spec(),
         "system_prompt": ORCHESTRATOR_PROMPT,
         "tools": tools,
-        "subagents": [topic_researcher_agent, article_writer_agent],
+        "subagents": [topic_researcher_agent, build_article_writer_agent(preferences)],
         "backend": FilesystemBackend(root_dir=".", virtual_mode=True),
+        "checkpointer": _build_checkpointer(),
     }
-
-    if use_hitl and open_slots > 0:
-        agent_config["checkpointer"] = MemorySaver()
 
     return create_deep_agent(**agent_config)
 
@@ -287,8 +304,29 @@ def _run_with_interrupts(agent, initial, config, metrics):
         stream_input = Command(resume=_prompt_user(pending))
 
 
-def _build_prompt(target_date: str, topics: list[str], open_slots: int) -> str:
+def _run_feedback_loop(agent, config, metrics, final_content):
+    """Prompt for feedback after a draft; stream each round on the same thread
+    until the user signals they're done."""
+    while True:
+        print("\n" + "=" * 40)
+        print("📋 현재 결과:")
+        print("=" * 40)
+        print(final_content or "(응답 없음)")
+
+        feedback = input("\n💬 피드백을 입력하세요 (완료: 빈 줄/done/exit/끝): ").strip()
+        if not feedback or feedback.lower() in {"done", "exit"} or feedback == "끝":
+            return final_content
+
+        stream_input = {"messages": [{"role": "user", "content": feedback}]}
+        final_content = _run_with_interrupts(agent, stream_input, config, metrics)
+
+
+def _build_prompt(target_date: str, topics: list[str], open_slots: int, preferences: str) -> str:
     lines = [f"{target_date} 발행 오토마타 뉴스레터를 작성해주세요.", ""]
+    if preferences:
+        lines.append("## 사용자 선호 (기억된 내용)")
+        lines.append(preferences.strip())
+        lines.append("")
     if topics:
         lines.append("사용자 지정 토픽 (각각 topic-researcher로 조사하세요):")
         lines += [f"- {topic}" for topic in topics]
@@ -324,8 +362,9 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
     if use_hitl and open_slots > 0:
         print("👤 Human-in-the-Loop 모드 활성화")
 
-    agent = create_newsletter_agent(target_date, open_slots=open_slots, use_hitl=use_hitl)
-    prompt = _build_prompt(target_date, topics, open_slots)
+    preferences = _read_memory()
+    agent = create_newsletter_agent(target_date, open_slots=open_slots, use_hitl=use_hitl, preferences=preferences)
+    prompt = _build_prompt(target_date, topics, open_slots, preferences)
 
     print("🤖 에이전트 실행 중 (스트리밍)...\n")
     metrics = NewsletterRunMetrics(target_date, "full", _agent_model_spec())
@@ -336,6 +375,7 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
         final_content = _run_with_interrupts(
             agent, {"messages": [{"role": "user", "content": prompt}]}, config, metrics
         )
+        final_content = _run_feedback_loop(agent, config, metrics, final_content)
 
         print("\n" + "=" * 40)
         print("📋 최종 결과:")
@@ -352,6 +392,43 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
         print(f"📊 실행 메트릭 저장: {metrics_path}", file=sys.stderr)
         import traceback
         traceback.print_exc()
+        return None
+
+
+def resume_feedback(date_dir: str) -> dict | None:
+    """Reattach to an already-generated newsletter's thread and continue the
+    feedback loop, without regenerating anything.
+
+    Args:
+        date_dir: Date directory of an existing newsletter (e.g. "2026-01-15").
+
+    Returns:
+        {"final_content": ..., "metrics_path": ...} or None on failure.
+    """
+    if not validate_api_keys():
+        return None
+
+    newsletter_path = Path(ARTICLES_DIR) / date_dir / "newsletter.md"
+    if not newsletter_path.exists():
+        print(f"❌ 뉴스레터를 찾을 수 없습니다: {newsletter_path}", file=sys.stderr)
+        return None
+
+    print(f"🔧 기존 스레드 재연결 중... ({date_dir})")
+    preferences = _read_memory()
+    agent = create_newsletter_agent(date_dir, open_slots=0, use_hitl=False, preferences=preferences)
+    config = {"configurable": {"thread_id": f"newsletter-{date_dir}"}}
+    metrics = NewsletterRunMetrics(date_dir, "feedback", _agent_model_spec())
+    final_content = newsletter_path.read_text(encoding="utf-8")
+
+    try:
+        final_content = _run_feedback_loop(agent, config, metrics, final_content)
+        metrics_path = metrics.save("completed", final_content=final_content)
+        print(f"📊 실행 메트릭 저장: {metrics_path}")
+        return {"final_content": final_content, "metrics_path": metrics_path}
+    except Exception as e:
+        metrics_path = metrics.save("failed", final_content=final_content, error=str(e))
+        print(f"\n❌ 피드백 처리 중 오류: {e}", file=sys.stderr)
+        print(f"📊 실행 메트릭 저장: {metrics_path}", file=sys.stderr)
         return None
 
 
