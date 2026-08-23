@@ -34,6 +34,12 @@ def test_article_writer_prompt_requires_citations():
     assert "만들어내거나" in ARTICLE_WRITER_PROMPT or "추측" in ARTICLE_WRITER_PROMPT
 
 
+def test_article_writer_prompt_instructs_diagram_tool():
+    """Must know when and how to call create_svg_diagram and splice the result in."""
+    assert "create_svg_diagram" in ARTICLE_WRITER_PROMPT
+    assert "focus" in ARTICLE_WRITER_PROMPT
+
+
 def test_article_writer_preserves_citations():
     """Article writer must be told not to remove inline citations."""
     assert "제거" in ARTICLE_WRITER_PROMPT or "수정하지" in ARTICLE_WRITER_PROMPT
