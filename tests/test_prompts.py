@@ -4,6 +4,7 @@ from src.config import (
     TOPIC_RESEARCHER_PROMPT,
     ORCHESTRATOR_PROMPT,
     ARTICLE_WRITER_PROMPT,
+    SVG_DIAGRAM_PROMPT,
 )
 
 
@@ -54,3 +55,33 @@ def test_orchestrator_infers_preferences_without_explicit_trigger():
     assert "memory/preferences.md" in ORCHESTRATOR_PROMPT
     assert "덧붙여" in ORCHESTRATOR_PROMPT
     assert "취향" in ORCHESTRATOR_PROMPT
+
+
+# --- SVG diagram prompt ---
+
+def test_svg_diagram_prompt_scopes_to_one_diagram():
+    """Must not write article prose, only draw one diagram."""
+    assert "글은 쓰지 않습니다" in SVG_DIAGRAM_PROMPT or "다이어그램 1개" in SVG_DIAGRAM_PROMPT
+
+
+def test_svg_diagram_prompt_requires_viewbox():
+    assert "viewBox" in SVG_DIAGRAM_PROMPT
+
+
+def test_svg_diagram_prompt_forbids_host_dependent_styling():
+    """Embedded via <img>, so no currentColor / external font links / script."""
+    assert "currentColor" in SVG_DIAGRAM_PROMPT
+    assert "<script>" in SVG_DIAGRAM_PROMPT
+
+
+def test_svg_diagram_prompt_requires_cjk_font_fallback():
+    assert "Gothic" in SVG_DIAGRAM_PROMPT
+
+
+def test_svg_diagram_prompt_requires_worth_it_output_field():
+    assert "worth_it" in SVG_DIAGRAM_PROMPT
+    assert "caption" in SVG_DIAGRAM_PROMPT
+
+
+def test_svg_diagram_prompt_handles_revision_mode():
+    assert "existing_svg" in SVG_DIAGRAM_PROMPT
