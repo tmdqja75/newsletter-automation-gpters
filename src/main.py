@@ -25,7 +25,7 @@ from .config import (
     THREADS_DB,
     to_model_spec,
 )
-from .agents import topic_researcher_agent, article_writer_agent
+from .agents import topic_researcher_agent, build_article_writer_agent
 from .tools.research_collector import run_weekly_research
 from .tools.interrupt_tools import auto_select_topics, request_topic_selection
 from .utils.merge_articles import merge_newsletter
@@ -185,7 +185,7 @@ def _build_checkpointer() -> SqliteSaver:
     return checkpointer
 
 
-def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: bool = False):
+def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: bool = False, preferences: str = ""):
     """Create the newsletter orchestrator.
 
     Tool registration encodes the run mode, so "should I ask the user?" and
@@ -205,7 +205,7 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
         "model": _agent_model_spec(),
         "system_prompt": ORCHESTRATOR_PROMPT,
         "tools": tools,
-        "subagents": [topic_researcher_agent, article_writer_agent],
+        "subagents": [topic_researcher_agent, build_article_writer_agent(preferences)],
         "backend": FilesystemBackend(root_dir=".", virtual_mode=True),
         "checkpointer": _build_checkpointer(),
     }

@@ -2,16 +2,27 @@
 
 from types import SimpleNamespace
 
-from src.agents import article_writer_agent
+from src.agents import build_article_writer_agent
 from src.main import create_newsletter_agent
 from src.tools.content_tools import fetch_article_content
 from src.tools.search_tools import search_ai_news
 
 
 def test_article_writer_agent_has_research_tools():
-    assert article_writer_agent["name"] == "article-writer"
-    assert search_ai_news in article_writer_agent["tools"]
-    assert fetch_article_content in article_writer_agent["tools"]
+    agent = build_article_writer_agent()
+    assert agent["name"] == "article-writer"
+    assert search_ai_news in agent["tools"]
+    assert fetch_article_content in agent["tools"]
+
+
+def test_article_writer_agent_includes_preferences_in_prompt():
+    agent = build_article_writer_agent("이모지 쓰지 마세요")
+    assert "이모지 쓰지 마세요" in agent["system_prompt"]
+
+
+def test_article_writer_agent_omits_preferences_section_when_empty():
+    agent = build_article_writer_agent("")
+    assert "사용자 선호" not in agent["system_prompt"]
 
 
 def test_create_newsletter_agent_uses_article_writer(monkeypatch):
