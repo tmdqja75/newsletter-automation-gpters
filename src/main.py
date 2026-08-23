@@ -29,6 +29,7 @@ from .config import (
 from .agents import topic_researcher_agent, build_article_writer_agent
 from .tools.research_collector import run_weekly_research
 from .tools.interrupt_tools import auto_select_topics, request_topic_selection
+from .tools.diagram_tools import create_svg_diagram
 from .utils.merge_articles import merge_newsletter
 
 
@@ -203,7 +204,7 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
     """
     Path(ARTICLES_DIR).mkdir(parents=True, exist_ok=True)
 
-    tools = [save_article, merge_newsletter]
+    tools = [save_article, merge_newsletter, create_svg_diagram]
     if open_slots > 0:
         tools.append(run_weekly_research)
         tools.append(request_topic_selection if use_hitl else auto_select_topics)

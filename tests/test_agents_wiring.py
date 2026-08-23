@@ -47,6 +47,21 @@ def test_create_newsletter_agent_uses_article_writer(monkeypatch):
     assert subagent_names == {"topic-researcher", "article-writer"}
 
 
+def test_create_newsletter_agent_registers_diagram_tool(monkeypatch):
+    captured = {}
+
+    def fake_create_deep_agent(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr("src.main.create_deep_agent", fake_create_deep_agent)
+    monkeypatch.setattr("src.main._build_checkpointer", lambda: SimpleNamespace())
+
+    create_newsletter_agent("2026-06-17")
+
+    assert create_svg_diagram in captured["tools"]
+
+
 from src.agents import topic_researcher_agent
 from src.agents.topic_researcher import TopicResearch
 

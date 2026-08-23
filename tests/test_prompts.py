@@ -56,6 +56,12 @@ def test_orchestrator_handles_feedback_by_editing_saved_files():
     assert "피드백" in ORCHESTRATOR_PROMPT
 
 
+def test_orchestrator_prompt_handles_diagram_feedback():
+    """SVG-shaped feedback must call create_svg_diagram with the existing path, not edit .md text."""
+    assert "create_svg_diagram" in ORCHESTRATOR_PROMPT
+    assert "existing_svg_path" in ORCHESTRATOR_PROMPT
+
+
 def test_orchestrator_infers_preferences_without_explicit_trigger():
     """Taste signals in feedback must be saved without requiring a "remember" keyword."""
     assert "memory/preferences.md" in ORCHESTRATOR_PROMPT
