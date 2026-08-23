@@ -41,3 +41,16 @@ def test_article_writer_preserves_citations():
 def test_orchestrator_forbids_inventing_topics():
     """Zero research results must stop the run, not trigger hallucinated topics."""
     assert "지어내지" in ORCHESTRATOR_PROMPT
+
+
+def test_orchestrator_handles_feedback_by_editing_saved_files():
+    """Revisions must patch existing article files, not regenerate everything."""
+    assert "merge_newsletter" in ORCHESTRATOR_PROMPT
+    assert "피드백" in ORCHESTRATOR_PROMPT
+
+
+def test_orchestrator_infers_preferences_without_explicit_trigger():
+    """Taste signals in feedback must be saved without requiring a "remember" keyword."""
+    assert "memory/preferences.md" in ORCHESTRATOR_PROMPT
+    assert "덧붙여" in ORCHESTRATOR_PROMPT
+    assert "취향" in ORCHESTRATOR_PROMPT

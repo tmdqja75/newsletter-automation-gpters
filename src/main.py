@@ -23,6 +23,7 @@ from .config import (
     TAVILY_API_KEY,
     MODEL_NAME,
     THREADS_DB,
+    MEMORY_FILE,
     to_model_spec,
 )
 from .agents import topic_researcher_agent, build_article_writer_agent
@@ -140,6 +141,12 @@ class NewsletterRunMetrics:
             encoding="utf-8",
         )
         return str(metrics_path)
+
+
+def _read_memory() -> str:
+    """Read saved user preferences, if any. Empty string when the file doesn't exist yet."""
+    path = Path(MEMORY_FILE)
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def validate_api_keys() -> bool:
@@ -297,8 +304,12 @@ def _run_with_interrupts(agent, initial, config, metrics):
         stream_input = Command(resume=_prompt_user(pending))
 
 
-def _build_prompt(target_date: str, topics: list[str], open_slots: int) -> str:
+def _build_prompt(target_date: str, topics: list[str], open_slots: int, preferences: str) -> str:
     lines = [f"{target_date} 발행 오토마타 뉴스레터를 작성해주세요.", ""]
+    if preferences:
+        lines.append("## 사용자 선호 (기억된 내용)")
+        lines.append(preferences.strip())
+        lines.append("")
     if topics:
         lines.append("사용자 지정 토픽 (각각 topic-researcher로 조사하세요):")
         lines += [f"- {topic}" for topic in topics]
@@ -334,8 +345,9 @@ def run_newsletter_generation(target_date: str = None, use_hitl: bool = False,
     if use_hitl and open_slots > 0:
         print("👤 Human-in-the-Loop 모드 활성화")
 
-    agent = create_newsletter_agent(target_date, open_slots=open_slots, use_hitl=use_hitl)
-    prompt = _build_prompt(target_date, topics, open_slots)
+    preferences = _read_memory()
+    agent = create_newsletter_agent(target_date, open_slots=open_slots, use_hitl=use_hitl, preferences=preferences)
+    prompt = _build_prompt(target_date, topics, open_slots, preferences)
 
     print("🤖 에이전트 실행 중 (스트리밍)...\n")
     metrics = NewsletterRunMetrics(target_date, "full", _agent_model_spec())

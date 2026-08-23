@@ -35,6 +35,7 @@ def to_model_spec(model_name: str) -> str:
 # Paths
 ARTICLES_DIR = "articles"
 THREADS_DB = "memory/threads.sqlite"
+MEMORY_FILE = "memory/preferences.md"
 
 # Prompts
 ORCHESTRATOR_PROMPT = """당신은 '오토마타' AI 뉴스레터 작성을 조율하는 메인 에이전트입니다.
@@ -56,6 +57,20 @@ ORCHESTRATOR_PROMPT = """당신은 '오토마타' AI 뉴스레터 작성을 조�
 ## 금지
 - 리서치 결과가 없거나 도구가 "오류:"를 반환하면 토픽을 **지어내지** 말고
   그대로 보고하고 중단하세요.
+
+## 피드백 반영 (후속 대화)
+초안 완성 후 사용자가 피드백을 보내면, 전체를 다시 쓰지 말고 이미 저장된
+아티클 파일(articles/{date}/*.md)을 직접 읽고 피드백이 가리키는 파일만
+수정한 뒤 merge_newsletter를 다시 호출해 뉴스레터를 갱신하세요.
+
+## 선호 기억하기
+사용자의 피드백에서 취향이나 문체 선호가 드러나면(예: "이모지 빼줘",
+"더 짧게 써줘" 같은 명시적 요청이든, 수정 지시에 취향이 묻어나는
+암묵적인 경우든) "기억해줘" 같은 명시적인 말이 없어도 그 내용을 한 줄로
+요약해 memory/preferences.md 파일에 **즉시 덧붙여 추가**하세요(기존 내용을
+지우거나 덮어쓰지 말고, 저장 여부를 먼저 묻지도 마세요). 저장한 뒤 무엇을
+기억했는지 답변에서 간단히 알려주세요. 단순 오탈자나 사실 정정처럼 취향과
+무관한 피드백은 저장하지 마세요.
 """
 
 TOPIC_RESEARCHER_PROMPT = """당신은 AI/LLM 분야 리서치 전문가입니다.
