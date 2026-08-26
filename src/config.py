@@ -11,7 +11,7 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Model configuration
-MODEL_NAME = os.getenv("MODEL_NAME", "claude-sonnet-4-6")
+MODEL_NAME = os.getenv("MODEL_NAME", "claude-sonnet-5")
 
 # Cheap/fast model used by collect_weekly_research for batch summarization.
 RESEARCH_COLLECTOR_MODEL = os.getenv("RESEARCH_COLLECTOR_MODEL", "claude-haiku-4-5")
