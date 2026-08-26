@@ -105,6 +105,52 @@ def test_run_weekly_research_reports_error_count(tmp_path, monkeypatch):
     assert "오류 1건" in receipt
 
 
+def _raw_item(n: int, published: str = "2026-08-01") -> dict:
+    return {
+        "category": "agents_automation",
+        "tool": "tavily",
+        "query": "q",
+        "items": [{
+            "url": f"https://example.com/raw{n}",
+            "title": f"원본 토픽 {n}",
+            "published_date": published,
+            "score": 0.5,
+            "content": f"요약 {n}",
+        }],
+    }
+
+
+def _write_raw(date: str, raw: list[dict]) -> None:
+    path = Path("artifacts") / "research" / date / "raw_search_results.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+
+
+def test_load_more_candidates_returns_empty_when_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert research_collector.load_more_candidates("2026-08-05", set(), 5) == []
+
+
+def test_load_more_candidates_excludes_seen_urls(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_raw("2026-08-05", [_raw_item(1), _raw_item(2)])
+
+    more = research_collector.load_more_candidates(
+        "2026-08-05", {"https://example.com/raw1"}, 5
+    )
+
+    assert [c["url"] for c in more] == ["https://example.com/raw2"]
+
+
+def test_load_more_candidates_respects_count_cap(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_raw("2026-08-05", [_raw_item(i) for i in range(1, 6)])
+
+    more = research_collector.load_more_candidates("2026-08-05", set(), 2)
+
+    assert len(more) == 2
+
+
 from src.tools import interrupt_tools
 
 
@@ -149,12 +195,49 @@ def test_request_topic_selection_guards_empty_candidates(tmp_path, monkeypatch):
     assert interrupt_tools.request_topic_selection("2026-08-05", 2, []).startswith("오류:")
 
 
-def test_request_topic_selection_returns_error_on_bad_input(tmp_path, monkeypatch):
+def test_request_topic_selection_retries_on_bad_input_then_succeeds(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _write_cache("2026-08-05", [_candidate(1), _candidate(2)])
-    monkeypatch.setattr(interrupt_tools, "interrupt", lambda payload: "99")
+    answers = iter(["99", "1"])
+    monkeypatch.setattr(interrupt_tools, "interrupt", lambda payload: next(answers))
 
-    assert interrupt_tools.request_topic_selection("2026-08-05", 1, "").startswith("오류:")
+    picked = json.loads(interrupt_tools.request_topic_selection("2026-08-05", 1, []))
+
+    assert [c["url"] for c in picked] == ["https://example.com/1"]
+
+
+def test_request_topic_selection_supports_partial_pick_then_cycle(tmp_path, monkeypatch):
+    """User picks 1 from the first batch, cycles, then picks the rest from a new batch."""
+    monkeypatch.chdir(tmp_path)
+    _write_cache("2026-08-05", [_candidate(1), _candidate(2)])
+    monkeypatch.setattr(
+        interrupt_tools, "load_more_candidates", lambda date, seen, count: [_candidate(3)]
+    )
+    answers = iter(["1", "c", "1"])
+    monkeypatch.setattr(interrupt_tools, "interrupt", lambda payload: next(answers))
+
+    picked = json.loads(interrupt_tools.request_topic_selection("2026-08-05", 2, []))
+
+    assert [c["url"] for c in picked] == ["https://example.com/1", "https://example.com/3"]
+
+
+def test_request_topic_selection_cycle_exhausted_shows_message_and_recovers(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_cache("2026-08-05", [_candidate(1), _candidate(2)])
+    monkeypatch.setattr(interrupt_tools, "load_more_candidates", lambda date, seen, count: [])
+    captured = []
+    answers = iter(["c", "1"])
+
+    def fake_interrupt(payload):
+        captured.append(payload)
+        return next(answers)
+
+    monkeypatch.setattr(interrupt_tools, "interrupt", fake_interrupt)
+
+    picked = json.loads(interrupt_tools.request_topic_selection("2026-08-05", 1, []))
+
+    assert [c["url"] for c in picked] == ["https://example.com/1"]
+    assert captured[1]["message"] == "더 이상 보여줄 후보가 없습니다."
 
 
 def test_auto_select_topics_matches_hitl_shape(tmp_path, monkeypatch):

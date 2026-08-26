@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import sqlite3
+from uuid import uuid4
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
@@ -29,6 +30,7 @@ from .config import (
 from .agents import topic_researcher_agent, build_article_writer_agent
 from .tools.research_collector import run_weekly_research
 from .tools.interrupt_tools import auto_select_topics, request_topic_selection
+from .tools.diagram_tools import create_svg_diagram
 from .utils.merge_articles import merge_newsletter
 
 
@@ -203,7 +205,7 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
     """
     Path(ARTICLES_DIR).mkdir(parents=True, exist_ok=True)
 
-    tools = [save_article, merge_newsletter]
+    tools = [save_article, merge_newsletter, create_svg_diagram]
     if open_slots > 0:
         tools.append(run_weekly_research)
         tools.append(request_topic_selection if use_hitl else auto_select_topics)
@@ -218,6 +220,18 @@ def create_newsletter_agent(target_date: str, open_slots: int = 4, use_hitl: boo
     }
 
     return create_deep_agent(**agent_config)
+
+
+def _extract_text(content) -> str:
+    """Flatten LangChain message content (str or list of blocks) to plain text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return str(content)
 
 
 _TODO_STATUS_ICON = {"pending": "⬜", "in_progress": "🔄", "completed": "✅"}
@@ -242,17 +256,26 @@ def _handle_event(event: dict, metrics, final):
                 metrics.record_model_message(msg)
                 if getattr(msg, "content", None):
                     final = msg.content
-                    print(f"📝 응답 수신 ({len(str(msg.content))} 글자)")
+                    print(f"📝 응답 수신: {_extract_text(msg.content)}")
                 for tool_call in getattr(msg, "tool_calls", None) or []:
-                    print(f"🔨 도구 호출: {tool_call.get('name', 'unknown')}")
-                    if tool_call.get("name") == "write_todos":
-                        _print_todos(tool_call.get("args", {}).get("todos", []))
+                    name = tool_call.get("name", "unknown")
+                    args = tool_call.get("args", {}) or {}
+                    if name in ("read_file", "write_file", "edit_file") and args.get("file_path"):
+                        print(f"🔨 도구 호출: {name} ({args['file_path']})")
+                    else:
+                        print(f"🔨 도구 호출: {name}")
+                    if name == "write_todos":
+                        _print_todos(args.get("todos", []))
 
         elif key == "tools":
             for msg in messages:
                 name = getattr(msg, "name", "tool")
                 metrics.record_tool_result(name)
-                print(f"✅ {name} 완료")
+                content = _extract_text(getattr(msg, "content", "") or "")
+                if content:
+                    print(f"✅ {name} 완료: {content}")
+                else:
+                    print(f"✅ {name} 완료")
 
         elif key == "__interrupt__":
             for item in value:
@@ -269,6 +292,10 @@ def _prompt_user(payload) -> str:
     print("\n" + "=" * 50)
     for title in payload.get("confirmed") or []:
         print(f"✅ 확정된 토픽: {title}")
+    for title in payload.get("picked") or []:
+        print(f"☑️ 선택 완료: {title}")
+    if payload.get("message"):
+        print(f"⚠️ {payload['message']}")
     print(payload.get("topics", ""))
     print("=" * 50)
 
@@ -276,10 +303,12 @@ def _prompt_user(payload) -> str:
     total = payload.get("total", 0)
 
     while True:
-        raw = input(f"토픽 {slots}개를 선택하세요 (예: 3,7): ").strip()
+        raw = input(f"토픽 최대 {slots}개를 선택하세요 (예: 3,7 / 다른 후보 보려면 c 입력): ").strip()
+        if raw.lower() in {"c", "cycle"}:
+            return raw
         numbers = [int(n) for n in re.findall(r"\d+", raw)]
-        if len(numbers) != slots:
-            print(f"❌ {slots}개를 입력하세요 (입력: {len(numbers)}개)")
+        if not numbers or len(numbers) > slots:
+            print(f"❌ 1~{slots}개 사이로 입력하세요 (입력: {len(numbers)}개)")
         elif any(not 1 <= n <= total for n in numbers):
             print(f"❌ 1~{total} 범위의 번호만 입력하세요")
         else:
@@ -304,9 +333,11 @@ def _run_with_interrupts(agent, initial, config, metrics):
         stream_input = Command(resume=_prompt_user(pending))
 
 
-def _run_feedback_loop(agent, config, metrics, final_content):
+def _run_feedback_loop(agent, config, metrics, final_content, context_prefix: str = ""):
     """Prompt for feedback after a draft; stream each round on the same thread
-    until the user signals they're done."""
+    until the user signals they're done. `context_prefix` (if given) is
+    prepended only to the first outgoing message, to orient an agent on a
+    fresh thread that has no prior conversation history."""
     while True:
         print("\n" + "=" * 40)
         print("📋 현재 결과:")
@@ -317,7 +348,9 @@ def _run_feedback_loop(agent, config, metrics, final_content):
         if not feedback or feedback.lower() in {"done", "exit"} or feedback == "끝":
             return final_content
 
-        stream_input = {"messages": [{"role": "user", "content": feedback}]}
+        content = f"{context_prefix}\n\n{feedback}" if context_prefix else feedback
+        context_prefix = ""
+        stream_input = {"messages": [{"role": "user", "content": content}]}
         final_content = _run_with_interrupts(agent, stream_input, config, metrics)
 
 
@@ -408,20 +441,32 @@ def resume_feedback(date_dir: str) -> dict | None:
     if not validate_api_keys():
         return None
 
-    newsletter_path = Path(ARTICLES_DIR) / date_dir / "newsletter.md"
+    articles_dir = Path(ARTICLES_DIR) / date_dir
+    newsletter_path = articles_dir / "newsletter.md"
     if not newsletter_path.exists():
         print(f"❌ 뉴스레터를 찾을 수 없습니다: {newsletter_path}", file=sys.stderr)
         return None
 
-    print(f"🔧 기존 스레드 재연결 중... ({date_dir})")
+    print(f"🔧 새 피드백 세션 시작 중... ({date_dir})")
     preferences = _read_memory()
     agent = create_newsletter_agent(date_dir, open_slots=0, use_hitl=False, preferences=preferences)
-    config = {"configurable": {"thread_id": f"newsletter-{date_dir}"}}
+    # Fresh thread every session: skips the bloated generation-run history,
+    # so the agent needs an explicit pointer to the existing files instead.
+    thread_id = f"feedback-{date_dir}-{uuid4().hex[:8]}"
+    config = {"configurable": {"thread_id": thread_id}}
     metrics = NewsletterRunMetrics(date_dir, "feedback", _agent_model_spec())
     final_content = newsletter_path.read_text(encoding="utf-8")
 
+    article_files = sorted(p.name for p in articles_dir.glob("*.md"))
+    context_prefix = (
+        f"{date_dir} 뉴스레터에 대한 피드백 세션입니다. 아티클 디렉토리: articles/{date_dir}/\n"
+        f"기존 파일: {', '.join(article_files)}\n"
+        "필요한 파일을 read_file로 읽고 edit_file/write_file로 반영한 뒤, "
+        "newsletter.md 전체를 조합해야 하면 merge_newsletter를 사용하세요."
+    )
+
     try:
-        final_content = _run_feedback_loop(agent, config, metrics, final_content)
+        final_content = _run_feedback_loop(agent, config, metrics, final_content, context_prefix=context_prefix)
         metrics_path = metrics.save("completed", final_content=final_content)
         print(f"📊 실행 메트릭 저장: {metrics_path}")
         return {"final_content": final_content, "metrics_path": metrics_path}

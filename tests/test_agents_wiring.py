@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from src.agents import build_article_writer_agent
 from src.main import create_newsletter_agent
 from src.tools.content_tools import fetch_article_content
+from src.tools.diagram_tools import create_svg_diagram
 from src.tools.search_tools import search_ai_news
 
 
@@ -13,6 +14,11 @@ def test_article_writer_agent_has_research_tools():
     assert agent["name"] == "article-writer"
     assert search_ai_news in agent["tools"]
     assert fetch_article_content in agent["tools"]
+
+
+def test_article_writer_agent_has_diagram_tool():
+    agent = build_article_writer_agent()
+    assert create_svg_diagram in agent["tools"]
 
 
 def test_article_writer_agent_includes_preferences_in_prompt():
@@ -39,6 +45,21 @@ def test_create_newsletter_agent_uses_article_writer(monkeypatch):
 
     subagent_names = {sa["name"] for sa in captured["subagents"]}
     assert subagent_names == {"topic-researcher", "article-writer"}
+
+
+def test_create_newsletter_agent_registers_diagram_tool(monkeypatch):
+    captured = {}
+
+    def fake_create_deep_agent(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr("src.main.create_deep_agent", fake_create_deep_agent)
+    monkeypatch.setattr("src.main._build_checkpointer", lambda: SimpleNamespace())
+
+    create_newsletter_agent("2026-06-17")
+
+    assert create_svg_diagram in captured["tools"]
 
 
 from src.agents import topic_researcher_agent
