@@ -784,6 +784,26 @@ def load_candidates(publication_date: str) -> list[dict]:
         return []
 
 
+def load_more_candidates(publication_date: str, exclude_urls: set, count: int) -> list[dict]:
+    """Pull a fresh, unseen batch from raw_search_results.json for the HITL "cycle" option.
+
+    Reuses the normalize/dedupe/date-filter/rank pipeline steps but skips
+    relevance scoring and content fetch/summarize (no LLM calls) — cheap
+    enough for "show me something else", not full candidates.json quality.
+    """
+    path = Path("artifacts") / "research" / publication_date / "raw_search_results.json"
+    try:
+        raw_results = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    pool = _normalize_candidates(raw_results)
+    pool = _dedupe_candidates(pool)
+    pool = _date_filter(pool, publication_date)
+    pool = [c for c in pool if c["url"] not in exclude_urls]
+    return _rank_and_truncate(pool, count)
+
+
 def run_weekly_research(publication_date: str) -> str:
     """이번 주 AI/LLM 뉴스 후보를 수집해 research_results.md 파일로 저장합니다.
 
