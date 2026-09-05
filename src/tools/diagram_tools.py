@@ -18,7 +18,15 @@ def _default_llm_call(system_prompt: str, user_content: str) -> str:
         {"role": "user", "content": user_content},
     ])
     content = getattr(response, "content", response)
-    return content if isinstance(content, str) else str(content)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content)
 
 
 def _strip_code_fence(raw: str) -> str:
