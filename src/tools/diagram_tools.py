@@ -12,11 +12,14 @@ def _default_llm_call(system_prompt: str, user_content: str) -> str:
     """Make one isolated LLM call and return its raw text content."""
     from langchain.chat_models import init_chat_model
 
-    model = init_chat_model(config.to_model_spec(config.MODEL_NAME))
+    # Thinking tokens share this budget; the 4096 profile default truncates the SVG JSON.
+    model = init_chat_model(config.to_model_spec(config.MODEL_NAME), max_tokens=32000)
     response = model.invoke([
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ])
+    if response.response_metadata.get("stop_reason") == "max_tokens":
+        raise RuntimeError("응답이 max_tokens에서 잘렸어요")
     content = getattr(response, "content", response)
     if isinstance(content, str):
         return content
