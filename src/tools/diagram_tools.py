@@ -64,6 +64,9 @@ def create_svg_diagram(
         llm_call = _default_llm_call
 
     user_parts = []
+    prefs_path = Path(config.MEMORY_FILE)
+    if prefs_path.exists():
+        user_parts.append(f"user_preferences:\n{prefs_path.read_text(encoding='utf-8').strip()}")
     if article_text:
         user_parts.append(f"article_text:\n{article_text}")
     if focus:
@@ -86,9 +89,12 @@ def create_svg_diagram(
 
     svg = data.get("svg", "")
     try:
-        ET.fromstring(svg)
+        root = ET.fromstring(svg)
     except ET.ParseError as exc:
         return f"오류: SVG 생성 실패 - 잘못된 SVG 마크업 ({exc})"
+    # Browsers refuse to render an <img>-embedded SVG without the namespace.
+    if root.tag == "svg":
+        svg = svg.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"', 1)
 
     if existing_svg_path:
         svg_path = Path(existing_svg_path)
