@@ -4,7 +4,7 @@ import json
 
 from src.tools.diagram_tools import create_svg_diagram
 
-VALID_SVG = '<svg viewBox="0 0 100 100"><rect width="10" height="10"/></svg>'
+VALID_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="10" height="10"/></svg>'
 
 
 def _fake_llm(response: dict):
@@ -75,7 +75,7 @@ def test_create_svg_diagram_revision_overwrites_existing_file(tmp_path, monkeypa
     existing_path = svg_dir / "01_topic.svg"
     existing_path.write_text(VALID_SVG, encoding="utf-8")
 
-    revised_svg = '<svg viewBox="0 0 100 100"><circle r="5"/></svg>'
+    revised_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle r="5"/></svg>'
     llm_call = _fake_llm({"svg": revised_svg, "caption": "수정됨", "worth_it": True})
 
     result = create_svg_diagram(
@@ -118,3 +118,29 @@ def test_create_svg_diagram_webbrowser_failure_does_not_propagate(tmp_path, monk
     )
 
     assert result == "![c](01_topic.svg)\n\nc"
+
+
+def test_create_svg_diagram_passes_saved_preferences_to_llm(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "memory").mkdir()
+    (tmp_path / "memory" / "preferences.md").write_text("- 박스 안 텍스트는 중앙 정렬", encoding="utf-8")
+    seen = {}
+
+    def llm_call(system_prompt, user_content):
+        seen["user_content"] = user_content
+        return json.dumps({"svg": VALID_SVG, "caption": "c", "worth_it": True})
+
+    create_svg_diagram("01_topic", "2026-08-23", article_text="본문", focus="핵심 흐름", llm_call=llm_call)
+
+    assert "user_preferences:\n- 박스 안 텍스트는 중앙 정렬" in seen["user_content"]
+
+
+def test_create_svg_diagram_adds_missing_svg_namespace(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("webbrowser.open", lambda *_: None)
+
+    create_svg_diagram("01_topic", "2026-08-23", article_text="본문", focus="f",
+                       llm_call=_fake_llm({"svg": '<svg viewBox="0 0 1 1"/>', "caption": "c", "worth_it": True}))
+
+    svg = (tmp_path / "articles" / "2026-08-23" / "01_topic.svg").read_text(encoding="utf-8")
+    assert svg == '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'

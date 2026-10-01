@@ -12,13 +12,24 @@ def _default_llm_call(system_prompt: str, user_content: str) -> str:
     """Make one isolated LLM call and return its raw text content."""
     from langchain.chat_models import init_chat_model
 
-    model = init_chat_model(config.to_model_spec(config.MODEL_NAME))
+    # Thinking tokens share this budget; the 4096 profile default truncates the SVG JSON.
+    model = init_chat_model(config.to_model_spec(config.MODEL_NAME), max_tokens=32000)
     response = model.invoke([
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ])
+    if response.response_metadata.get("stop_reason") == "max_tokens":
+        raise RuntimeError("응답이 max_tokens에서 잘렸어요")
     content = getattr(response, "content", response)
-    return content if isinstance(content, str) else str(content)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content)
 
 
 def _strip_code_fence(raw: str) -> str:
@@ -53,6 +64,9 @@ def create_svg_diagram(
         llm_call = _default_llm_call
 
     user_parts = []
+    prefs_path = Path(config.MEMORY_FILE)
+    if prefs_path.exists():
+        user_parts.append(f"user_preferences:\n{prefs_path.read_text(encoding='utf-8').strip()}")
     if article_text:
         user_parts.append(f"article_text:\n{article_text}")
     if focus:
@@ -75,9 +89,12 @@ def create_svg_diagram(
 
     svg = data.get("svg", "")
     try:
-        ET.fromstring(svg)
+        root = ET.fromstring(svg)
     except ET.ParseError as exc:
         return f"오류: SVG 생성 실패 - 잘못된 SVG 마크업 ({exc})"
+    # Browsers refuse to render an <img>-embedded SVG without the namespace.
+    if root.tag == "svg":
+        svg = svg.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"', 1)
 
     if existing_svg_path:
         svg_path = Path(existing_svg_path)
