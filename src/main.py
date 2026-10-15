@@ -1,6 +1,8 @@
 """Main orchestrator agent for newsletter automation."""
 
 import json
+import os
+import select
 import sys
 import time
 from datetime import datetime
@@ -12,8 +14,10 @@ from uuid import uuid4
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
+import deepagents.middleware.subagents as deepagents_subagents
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
+from pydantic import model_validator
 
 import re
 
@@ -32,6 +36,34 @@ from .tools.research_collector import run_weekly_research
 from .tools.interrupt_tools import auto_select_topics, request_topic_selection
 from .tools.diagram_tools import create_svg_diagram
 from .utils.merge_articles import merge_newsletter
+
+
+class _TaskArgs(deepagents_subagents.TaskToolSchema):
+    """`task` args that keep a brief sent under an undeclared key.
+
+    The orchestrator sometimes puts the subagent brief in an extra arg like
+    `instruction`; deepagents ignores it, the subagent sees only the short title,
+    and the orchestrator retries `task` forever. Extra string args are folded into
+    `description`. Non-string extras (the injected `runtime`) pass through.
+    Don't use extra="forbid" here: it also rejects the injected `runtime`, and
+    LangGraph hides that error from the model, so every `task` call fails blank.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_stray_brief(cls, data):
+        if not isinstance(data, dict):
+            return data
+        extras = [k for k, v in data.items() if k not in cls.model_fields and isinstance(v, str)]
+        if extras:
+            parts = [data.get("description", "")] + [data.pop(k) for k in extras]
+            # In place: langchain_core forwards only keys present in this dict.
+            data["description"] = "\n\n".join(p for p in parts if p)
+        return data
+
+
+# _build_task_tool reads this module global each time create_deep_agent builds `task`.
+deepagents_subagents.TaskToolSchema = _TaskArgs
 
 
 def _agent_model_spec() -> str:
@@ -333,6 +365,29 @@ def _run_with_interrupts(agent, initial, config, metrics):
         stream_input = Command(resume=_prompt_user(pending))
 
 
+_STOP_WORDS = {"done", "exit", "quit", "q", "끝", "종료"}
+
+
+def _read_feedback(prompt: str) -> str:
+    """Read one feedback message, including every line of a multi-line paste.
+
+    input() takes only the first line, leaving the rest of a paste queued for
+    the next prompt -- where a blank line used to end the session early.
+    Reads raw from fd 0 and keeps draining while more input is already waiting.
+    """
+    print(prompt, end="", flush=True)
+    chunks = [os.read(0, 65536)]
+    if not chunks[0]:
+        return "exit"  # EOF (Ctrl-D)
+    # ponytail: 0.1s gap heuristic separates a paste from typing; raise if pastes get split
+    while select.select([0], [], [], 0.1)[0]:
+        chunk = os.read(0, 65536)
+        if not chunk:
+            break
+        chunks.append(chunk)
+    return b"".join(chunks).decode("utf-8", errors="replace").strip()
+
+
 def _run_feedback_loop(agent, config, metrics, final_content, context_prefix: str = ""):
     """Prompt for feedback after a draft; stream each round on the same thread
     until the user signals they're done. `context_prefix` (if given) is
@@ -344,8 +399,10 @@ def _run_feedback_loop(agent, config, metrics, final_content, context_prefix: st
         print("=" * 40)
         print(final_content or "(응답 없음)")
 
-        feedback = input("\n💬 피드백을 입력하세요 (완료: 빈 줄/done/exit/끝): ").strip()
-        if not feedback or feedback.lower() in {"done", "exit"} or feedback == "끝":
+        feedback = ""
+        while not feedback:  # blank Enter re-prompts; only a stop word ends the session
+            feedback = _read_feedback("\n💬 피드백을 입력하세요 (종료: done/exit/끝): ")
+        if feedback.lower() in _STOP_WORDS:
             return final_content
 
         content = f"{context_prefix}\n\n{feedback}" if context_prefix else feedback
