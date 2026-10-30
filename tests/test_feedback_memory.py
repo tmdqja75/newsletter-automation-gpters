@@ -60,29 +60,31 @@ class _ScriptedFeedbackAgent:
         yield {"model": {"messages": [SimpleNamespace(content=reply, tool_calls=[])]}}
 
 
-def test_feedback_loop_streams_feedback_and_stops_on_blank_input(monkeypatch):
-    inputs = iter(["짧게 줄여줘", ""])
-    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    agent = _ScriptedFeedbackAgent(["수정된 초안"])
+def test_feedback_loop_keeps_going_until_stop_word(monkeypatch):
+    inputs = iter(["짧게 줄여줘", "제목도 바꿔줘", "done"])
+    monkeypatch.setattr(main, "_read_feedback", lambda _: next(inputs))
+    agent = _ScriptedFeedbackAgent(["수정된 초안", "두 번째 수정"])
 
     final = main._run_feedback_loop(agent, {}, _Metrics(), "원래 초안")
 
-    assert final == "수정된 초안"
-    assert agent.received[0]["messages"][0]["content"] == "짧게 줄여줘"
+    assert final == "두 번째 수정"
+    assert [r["messages"][0]["content"] for r in agent.received] == ["짧게 줄여줘", "제목도 바꿔줘"]
 
 
-def test_feedback_loop_returns_immediately_when_first_input_blank(monkeypatch):
-    monkeypatch.setattr("builtins.input", lambda _: "")
+def test_feedback_loop_blank_input_reprompts_instead_of_ending(monkeypatch):
+    inputs = iter(["", "", "done"])
+    monkeypatch.setattr(main, "_read_feedback", lambda _: next(inputs))
     agent = _ScriptedFeedbackAgent([])
 
     final = main._run_feedback_loop(agent, {}, _Metrics(), "원래 초안")
 
     assert final == "원래 초안"
     assert agent.received == []
+    assert next(inputs, None) is None  # both blanks consumed before "done"
 
 
 def test_feedback_loop_stops_on_done_keyword(monkeypatch):
-    monkeypatch.setattr("builtins.input", lambda _: "done")
+    monkeypatch.setattr(main, "_read_feedback", lambda _: "done")
     agent = _ScriptedFeedbackAgent([])
 
     final = main._run_feedback_loop(agent, {}, _Metrics(), "원래 초안")
@@ -107,7 +109,7 @@ def test_resume_feedback_reads_existing_newsletter_and_runs_loop(tmp_path, monke
     articles_dir.mkdir(parents=True)
     (articles_dir / "newsletter.md").write_text("기존 뉴스레터", encoding="utf-8")
 
-    monkeypatch.setattr("builtins.input", lambda _: "")  # end loop immediately
+    monkeypatch.setattr(main, "_read_feedback", lambda _: "done")  # end loop immediately
 
     result = main.resume_feedback("2026-08-05")
 
